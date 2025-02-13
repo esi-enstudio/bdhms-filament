@@ -10,42 +10,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
- /**
- * @method static create(array $user)
- * @method static latest()
- * @method static when()
-  * @method static search(mixed $search)
-  * @method static where()
-  * @method static insert()
-  * @method static firstWhere()
-  * @method static whereIn(string $string, $supervisorId)
-  * @method static paginate(mixed $perPage)
-  * @method static findOrFail( mixed $userId )
-  * @method static updateOrCreate( array $array, array $array1 )
-  * @method static find(mixed $userId)
-  * @method static pluck(string $string)
-  * @method static count()
-  * @method static whereHas(string $string, \Closure $param)
-  * @method static whereNotIn(string $string, $userId)
-  * @method static role(string $string)
-  * @method static select()
-  * @property mixed $created_at
-  * @property mixed $updated_at
-  * @property mixed $email_verified_at
-  * @property mixed $disabled_at
-  * @property mixed|string $created
-  * @property mixed|string $updated
-  * @property mixed|string $email_verified
-  * @property mixed|string $disabled
-  * @property mixed|string $remember
-  * @property mixed $remember_token
-  * @property mixed $avatar
-  * @property mixed $id
-  * @property mixed|string $update
-  * @property mixed|string $password
-  * @property mixed $name
-  * @property mixed $houses
-  */
 class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, Notifiable;

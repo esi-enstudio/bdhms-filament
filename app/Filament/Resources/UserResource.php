@@ -7,12 +7,14 @@ use App\Filament\Resources\UserResource\RelationManagers;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,50 +31,51 @@ class UserResource extends Resource
     {
         return $form
             ->schema([
-                TextInput::make('name')->required(),
+                Section::make('Primary Info')
+                    ->description('Prevent abuse by limiting the number of requests per period')
+                    ->schema([
 
-                TextInput::make('phone')
-                    ->tel()
-                    ->required(),
+                        TextInput::make('name')->required(),
 
-                TextInput::make('email')
-                    ->email()
-                    ->required()
-                    ->unique(User::class, 'email', ignoreRecord: true),
+                        TextInput::make('phone')
+                            ->tel()
+                            ->required(),
 
-                Select::make('status')->options([
-                    'active' => 'Active',
-                    'inactive' => 'Inactive',
-                ]),
+                        TextInput::make('email')
+                            ->email()
+                            ->required()
+                            ->unique(User::class, 'email', ignoreRecord: true),
+                        Select::make('status')->options([
+                            'active' => 'Active',
+                            'inactive' => 'Inactive',
+                        ]),
 
-                TextInput::make('password')
-                    ->password()
-                    ->required(fn($livewire) => $livewire instanceof CreateRecord)
-                    ->dehydrated(fn ($state) => filled($state)) // Ignore empty values on update
-                    ->visibleOn(['create','edit'])
-                    ->rule(Password::default()),
-                TextInput::make('password_confirmation')
-                    ->password()
-                    ->required(fn($livewire) => $livewire instanceof CreateRecord)
-                    ->dehydrated(fn ($state) => filled($state)) // Ignore empty values on update
-                    ->visibleOn(['create','edit'])
-                    ->same('password')
-                    ->requiredWith('password'),
+                        TextInput::make('password')
+                            ->password()
+                            ->required(fn($livewire) => $livewire instanceof CreateRecord)
+                            ->dehydrated(fn ($state) => filled($state)) // Ignore empty values on update
+                            ->visibleOn(['create','edit'])
+                            ->rule(Password::default()),
+                        TextInput::make('password_confirmation')
+                            ->password()
+                            ->required(fn($livewire) => $livewire instanceof CreateRecord)
+                            ->dehydrated(fn ($state) => filled($state)) // Ignore empty values on update
+                            ->visibleOn(['create','edit'])
+                            ->same('password')
+                            ->requiredWith('password'),
 
-//                TextInput::make('password')
-//                    ->password()
-//                    ->nullable()
-//                    ->visibleOn(['edit'])
-//                    ->rule(Password::default()),
-//                TextInput::make('password_confirmation')
-//                    ->password()
-//                    ->nullable()
-//                    ->visibleOn(['edit'])
-//                    ->same('password')
-//                    ->requiredWith('password'),
+                        TextInput::make('remarks')->columnSpan(2),
+                        FileUpload::make('avatar')->disk('public')->directory('avatars'),
+                    ]),
 
-                TextInput::make('remarks')->columnSpan(2),
-                FileUpload::make('avatar')->disk('public')->directory('avatars'),
+                    Section::make('Attach House')
+                    ->description('Prevent abuse by limiting the number of requests per period')
+                    ->schema([
+                        Select::make('houses')
+                        ->relationship('houses','name')
+                        ->multiple()
+                        ->preload(),
+                    ]),
             ]);
     }
 
@@ -80,7 +83,7 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('avatar'),
+                ImageColumn::make('avatar'),
                 TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
