@@ -58,15 +58,16 @@ class UserResource extends Resource
                             ->rule(Password::default()),
                         TextInput::make('password_confirmation')
                             ->password()
-                            ->required(fn($livewire) => $livewire instanceof CreateRecord)
+                            ->requiredWith('password')
                             ->dehydrated(fn ($state) => filled($state)) // Ignore empty values on update
                             ->visibleOn(['create','edit'])
-                            ->same('password')
-                            ->requiredWith('password'),
+                            ->same('password'),
 
-                        TextInput::make('remarks')->columnSpan(2),
+
+                        TextInput::make('remarks'),
+                        Select::make('roles')->relationship('roles','name')->multiple()->searchable()->preload(),
                         FileUpload::make('avatar')->disk('public')->directory('avatars'),
-                    ]),
+                    ])->columns(2),
 
                     Section::make('Attach House')
                     ->description('Prevent abuse by limiting the number of requests per period')
@@ -92,9 +93,12 @@ class UserResource extends Resource
                 TextColumn::make('email')
                     ->searchable(),
                 TextColumn::make('status')
+                    ->badge()
                     ->searchable(),
+                TextColumn::make('houses.code')->badge(),
+                TextColumn::make('roles.name')->badge(),
                 TextColumn::make('remarks')
-                    ->searchable(),
+                ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('disabled_at')
                     ->dateTime()
                     ->sortable()
@@ -108,6 +112,7 @@ class UserResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultPaginationPageOption(5)
             ->filters([
                 //
             ])

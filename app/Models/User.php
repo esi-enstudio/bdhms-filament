@@ -2,21 +2,23 @@
 
 namespace App\Models;
 
- use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
- use Illuminate\Database\Eloquent\Relations\BelongsToMany;
- use Illuminate\Database\Eloquent\Relations\HasMany;
- use Illuminate\Database\Eloquent\Relations\HasOne;
- use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
 
     /**
-     * The attributes that are mass assignable.
+     * The attributes that are mass assignabl
+     * e.
      *
      * @var array<int, string>
      */
@@ -86,7 +88,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function houses(): BelongsToMany
     {
-        return $this->belongsToMany(House::class, 'house_user');
+        return $this->belongsToMany(House::class, 'house_user')->withTimestamps();
     }
 
 }

@@ -13,9 +13,9 @@ class RsoSeeder extends Seeder
     public function run(): void
     {
         Rso::insert([
-            ['house_id' => 1, 'user_id' => 7, 'rso_code' => 'RS040001', 'itop_number' => '01409944001', 'status' => 'active'],
-            ['house_id' => 1, 'user_id' => 8, 'rso_code' => 'RS040002', 'itop_number' => '01908441955', 'status' => 'active'],
-            ['house_id' => 1, 'user_id' => 9, 'rso_code' => 'RS040003', 'itop_number' => '01915270101', 'status' => 'active'],
+            ['house_id' => 1, 'user_id' => 33, 'rso_code' => 'RS040001', 'itop_number' => '01409944001', 'status' => 'active'],
+            ['house_id' => 1, 'user_id' => 34, 'rso_code' => 'RS040002', 'itop_number' => '01908441955', 'status' => 'active'],
+            ['house_id' => 1, 'user_id' => 35, 'rso_code' => 'RS040003', 'itop_number' => '01915270101', 'status' => 'active'],
             ['house_id' => 1, 'user_id' => 10, 'rso_code' => 'RS040004', 'itop_number' => '01915270102', 'status' => 'active'],
             ['house_id' => 1, 'user_id' => 11, 'rso_code' => 'RS040005', 'itop_number' => '01937600512', 'status' => 'active'],
             ['house_id' => 1, 'user_id' => 12, 'rso_code' => 'RS040006', 'itop_number' => '01984220363', 'status' => 'active'],
