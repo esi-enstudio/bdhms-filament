@@ -6,9 +6,11 @@ use App\Filament\Resources\RetailerResource\Pages;
 use App\Filament\Resources\RetailerResource\RelationManagers;
 use App\Models\Retailer;
 use App\Models\Rso;
+use App\Models\User;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\DeleteAction;
@@ -27,22 +29,26 @@ class RetailerResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    public static function getNavigationBadge(): ?string
-    {
-        return Retailer::count();
-    }
-
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\Select::make('house_id')
-                    ->relationship('house', 'name')
+                    ->relationship('house', 'code')
+                    ->searchable()
+                    ->preload()
+                    ->live()
                     ->required(),
                 Forms\Components\Select::make('rso_id')
-                    ->relationship('rso', 'id'),
+                    ->label('Rso')
+                    ->options(fn(Get $get) => Rso::query()->where('house_id', $get('house_id'))->pluck('itop_number','id'))
+                    ->searchable()
+                    ->required(),
                 Forms\Components\Select::make('user_id')
-                    ->relationship('user', 'name'),
+                    ->label('User')
+                    ->options(fn(Get $get) => User::whereHas('houses', fn($query) => $query->where(['houses.id' => $get('house_id')],['status' => 'active']))->pluck('name','id')->toArray())
+                    ->searchable()
+                    ->required(),
                 Forms\Components\TextInput::make('code')
                     ->required(),
                 Forms\Components\TextInput::make('name')
