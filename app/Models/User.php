@@ -11,6 +11,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+/**
+ * @method static whereHas(string $string, \Closure $param)
+ * @method static where(string $string, string $string1)
+ */
 class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, Notifiable, HasRoles;
@@ -90,5 +94,4 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->belongsToMany(House::class, 'house_user')->withTimestamps();
     }
-
 }

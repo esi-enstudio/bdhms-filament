@@ -9,6 +9,10 @@ use App\Models\Rso;
 use App\Models\User;
 use Carbon\Carbon;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Resources\Resource;
@@ -20,6 +24,7 @@ use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -33,51 +38,83 @@ class RetailerResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('house_id')
+                Select::make('house_id')
                     ->relationship('house', 'code')
                     ->searchable()
                     ->preload()
                     ->live()
                     ->required(),
-                Forms\Components\Select::make('rso_id')
+                Select::make('rso_id')
                     ->label('Rso')
-                    ->options(fn(Get $get) => Rso::query()->where('house_id', $get('house_id'))->pluck('itop_number','id'))
+                    ->options(fn(Get $get, ?Model $record) => Rso::query()
+                        ->where('status', 'active')
+                        ->where('house_id', $get('house_id'))
+                        ->whereNotIn('id', Retailer::whereNotNull('rso_id')->pluck('rso_id'))
+                        ->when($record, fn($query) => $query->orWhere('id', $record->rso_id))
+                        ->pluck('itop_number','id')
+                    )
                     ->searchable()
                     ->required(),
-                Forms\Components\Select::make('user_id')
+                Select::make('user_id')
                     ->label('User')
-                    ->options(fn(Get $get) => User::whereHas('houses', fn($query) => $query->where(['houses.id' => $get('house_id')],['status' => 'active']))->pluck('name','id')->toArray())
+                    ->options(fn(Get $get, ?Model $record) => User::query()
+                        ->where('status','active')
+                        ->whereHas('houses', function ($house) use ($get){
+                            $house->where('houses.id', $get('house_id'));
+                        })
+                        ->whereHas('roles', function ($role){
+                            $role->where('roles.name', 'retailer');
+                        })
+                        ->whereNotIn('id', Retailer::whereNotNull('user_id')->pluck('user_id'))
+                        ->when($record, fn($query) => $query->orWhere('id', $record->user_id))
+                        ->pluck('name','id')
+                    )
+                    ->searchable(),
+                TextInput::make('code')
+                    ->required(),
+                TextInput::make('name')
+                    ->required(),
+                TextInput::make('owner_name'),
+                TextInput::make('owner_number'),
+                TextInput::make('itop_number')
+                    ->required(),
+                Select::make('type')
+                    ->options([
+                        'telecom' => 'Telecom',
+                        'pharmacy' => 'Pharmacy'
+                    ])
+                    ->default('telecom')
                     ->searchable()
+                    ->preload()
                     ->required(),
-                Forms\Components\TextInput::make('code')
+                Select::make('enabled')
+                    ->options([
+                        'Y' => 'Yes',
+                        'N' => 'No'
+                    ])
                     ->required(),
-                Forms\Components\TextInput::make('name')
+                Select::make('sso')
+                    ->options([
+                        'Y' => 'Yes',
+                        'N' => 'No'
+                    ]),
+                TextInput::make('service_point'),
+                TextInput::make('category'),
+                TextInput::make('division'),
+                TextInput::make('district'),
+                TextInput::make('thana'),
+                TextInput::make('address')
                     ->required(),
-                Forms\Components\TextInput::make('owner_name'),
-                Forms\Components\TextInput::make('owner_number'),
-                Forms\Components\TextInput::make('itop_number')
-                    ->required(),
-                Forms\Components\TextInput::make('type')
-                    ->required(),
-                Forms\Components\TextInput::make('enabled')
-                    ->required(),
-                Forms\Components\TextInput::make('sso'),
-                Forms\Components\TextInput::make('service_point'),
-                Forms\Components\TextInput::make('category'),
-                Forms\Components\TextInput::make('division'),
-                Forms\Components\TextInput::make('district'),
-                Forms\Components\TextInput::make('thana'),
-                Forms\Components\TextInput::make('address')
-                    ->required(),
-                Forms\Components\DatePicker::make('dob'),
-                Forms\Components\TextInput::make('nid'),
-                Forms\Components\TextInput::make('lat'),
-                Forms\Components\TextInput::make('long'),
-                Forms\Components\TextInput::make('bts_code'),
-                Forms\Components\Textarea::make('description')
+                DatePicker::make('dob')
+                    ->native(false),
+                TextInput::make('nid'),
+                TextInput::make('lat'),
+                TextInput::make('long'),
+                TextInput::make('bts_code'),
+                Textarea::make('description')
                     ->columnSpanFull(),
-                Forms\Components\TextInput::make('remarks'),
-                Forms\Components\TextInput::make('document'),
+                TextInput::make('remarks'),
+                TextInput::make('document'),
             ]);
     }
 
@@ -91,6 +128,7 @@ class RetailerResource extends Resource
                 TextColumn::make('code')
                     ->searchable(),
                 TextColumn::make('name')
+                    ->sortable()
                     ->searchable(),
                 TextColumn::make('itop_number')
                     ->searchable(),
