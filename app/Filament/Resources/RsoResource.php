@@ -6,8 +6,10 @@ use App\Models\Rso;
 use Filament\Forms;
 use Filament\Tables;
 use Filament\Forms\Form;
+use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Filament\Forms\Components\Select;
 use Filament\Tables\Actions\EditAction;
@@ -15,7 +17,6 @@ use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\DatePicker;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Tables\Actions\BulkActionGroup;
 use App\Filament\Resources\RsoResource\Pages;
 use Filament\Forms\Components\DateTimePicker;
@@ -26,9 +27,8 @@ use App\Filament\Resources\RsoResource\Pages\ViewRso;
 use App\Filament\Resources\RsoResource\Pages\ListRsos;
 use App\Filament\Resources\RsoResource\Pages\CreateRso;
 use App\Filament\Resources\RsoResource\RelationManagers;
-use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 
-class RsoResource extends Resource implements HasShieldPermissions
+class RsoResource extends Resource
 {
     protected static ?string $model = Rso::class;
 
@@ -179,10 +179,9 @@ class RsoResource extends Resource implements HasShieldPermissions
                 //
             ])
             ->actions([
-                ViewAction::make()->authorize(function(Rso $record){
-                    return auth()->user()->can('view_own', $record);
-                }),
+                ViewAction::make(),
                 EditAction::make(),
+                DeleteAction::make(),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
@@ -208,23 +207,17 @@ class RsoResource extends Resource implements HasShieldPermissions
         ];
     }
 
-    public static function getPermissionPrefixes(): array
+    public static function getEloquentQuery(): Builder
     {
-        return [
-            'view',
-            'view_own',
-            'view_any',
-            'create',
-            'update',
-            'restore',
-            'restore_any',
-            'delete',
-            'delete_any',
-        ];
-    }
+        $user = Auth::user();
 
-    public static function query(): Builder
-    {
-        return parent::query()->where('user_id', Auth::id());
+        // If the user is a super admin, show all RSOs
+        if ($user->hasRole('super admin'))
+        {
+            return parent::getEloquentQuery();
+        }
+
+        // Otherwise, only show the RSO that belongs to the logged-in user
+        return parent::getEloquentQuery()->where('user_id', $user->id);
     }
 }

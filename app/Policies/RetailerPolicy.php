@@ -3,10 +3,10 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Models\Rso;
+use App\Models\Retailer;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
-class RsoPolicy
+class RetailerPolicy
 {
     use HandlesAuthorization;
 
@@ -15,15 +15,15 @@ class RsoPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_rso');
+        return $user->can('view_any_retailer');
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Rso $rso): bool
+    public function view(User $user, Retailer $retailer): bool
     {
-        return $user->can('view_rso');
+        return $user->can('view_retailer');
     }
 
     /**
@@ -31,23 +31,23 @@ class RsoPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_rso');
+        return $user->can('create_retailer');
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Rso $rso): bool
+    public function update(User $user, Retailer $retailer): bool
     {
-        return $user->can('update_rso');
+        return $user->can('update_retailer');
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, Rso $rso): bool
+    public function delete(User $user, Retailer $retailer): bool
     {
-        return $user->can('delete_rso');
+        return $user->can('delete_retailer');
     }
 
     /**
@@ -55,15 +55,15 @@ class RsoPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_rso');
+        return $user->can('delete_any_retailer');
     }
 
     /**
      * Determine whether the user can permanently delete.
      */
-    public function forceDelete(User $user, Rso $rso): bool
+    public function forceDelete(User $user, Retailer $retailer): bool
     {
-        return $user->can('force_delete_rso');
+        return $user->can('force_delete_retailer');
     }
 
     /**
@@ -71,15 +71,15 @@ class RsoPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_rso');
+        return $user->can('force_delete_any_retailer');
     }
 
     /**
      * Determine whether the user can restore.
      */
-    public function restore(User $user, Rso $rso): bool
+    public function restore(User $user, Retailer $retailer): bool
     {
-        return $user->can('restore_rso');
+        return $user->can('restore_retailer');
     }
 
     /**
@@ -87,15 +87,15 @@ class RsoPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_rso');
+        return $user->can('restore_any_retailer');
     }
 
     /**
      * Determine whether the user can replicate.
      */
-    public function replicate(User $user, Rso $rso): bool
+    public function replicate(User $user, Retailer $retailer): bool
     {
-        return $user->can('replicate_rso');
+        return $user->can('replicate_retailer');
     }
 
     /**
@@ -103,6 +103,6 @@ class RsoPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_rso');
+        return $user->can('reorder_retailer');
     }
 }

@@ -37,12 +37,6 @@ class Retailer extends Model
     protected $guarded = [];
     protected $with = ['rso','house','user'];
 
-    protected array $searchable = [
-        'code',
-        'itop_number',
-        'name',
-    ];
-
     /**
      * Relationship with User model
      *

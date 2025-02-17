@@ -19,6 +19,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
 
 class UserResource extends Resource
@@ -142,5 +143,16 @@ class UserResource extends Resource
             'view' => Pages\ViewUser::route('/{record}'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        // If the user is a super admin, show all Users
+        if (Auth::user()->hasRole('super admin'))
+        {
+            return parent::getEloquentQuery();
+        }
+
+        return parent::getEloquentQuery()->where('id', Auth::id());
     }
 }
