@@ -15,6 +15,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\DeleteAction;
@@ -43,6 +44,7 @@ class RetailerResource extends Resource
                     ->searchable()
                     ->preload()
                     ->live()
+                    ->afterStateUpdated(fn(Set $set) => collect(['rso_id','user_id'])->each(fn($field) => $set($field, null)))
                     ->required(),
                 Select::make('rso_id')
                     ->label('Rso')
