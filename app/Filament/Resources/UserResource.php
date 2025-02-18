@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Imports\UserImporter;
 use Filament\Forms;
 use App\Models\User;
 use Filament\Tables;
 use Filament\Forms\Form;
+use Filament\Tables\Actions\ImportAction;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
 use Illuminate\Support\Facades\Auth;
@@ -117,6 +119,9 @@ class UserResource extends Resource
             ->defaultPaginationPageOption(5)
             ->filters([
                 //
+            ])
+            ->headerActions([
+                ImportAction::make()->importer(UserImporter::class),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

@@ -31,18 +31,6 @@ class Rso extends Model
     protected $guarded = [];
     protected $with = ['user','house'];
 
-    protected array $searchable = [
-        'osrm_code',
-        'rso_code',
-        'itop_number',
-        'personal_number',
-        'pool_number',
-        'user.name',
-        'user.phone',
-        'house.name',
-        'house.code',
-    ];
-
     /**
      * Relationship with User model
      *

@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Imports\RsoImporter;
 use App\Models\Rso;
 use Filament\Forms;
 use Filament\Tables;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
+use Filament\Tables\Actions\ImportAction;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
 use Illuminate\Support\Facades\Auth;
@@ -31,6 +33,7 @@ use App\Filament\Resources\RsoResource\RelationManagers;
 use App\Models\User;
 use Filament\Forms\Get;
 use Illuminate\Database\Eloquent\Model;
+use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 
 class RsoResource extends Resource
 {
@@ -212,6 +215,9 @@ class RsoResource extends Resource
             ->filters([
                 //
             ])
+            ->headerActions([
+                ImportAction::make()->importer(RsoImporter::class)
+            ])
             ->actions([
                 ViewAction::make(),
                 EditAction::make(),
@@ -219,6 +225,7 @@ class RsoResource extends Resource
             ])
             ->bulkActions([
                 BulkActionGroup::make([
+                    ExportBulkAction::make(),
                     DeleteBulkAction::make(),
                 ]),
             ]);

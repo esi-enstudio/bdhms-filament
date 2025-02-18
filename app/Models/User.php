@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 /**
  * @method static whereHas(string $string, \Closure $param)
  * @method static where(string $string, string $string1)
+ * @method static firstOrNew(array $array)
+ * @property mixed|string $phone
  */
 class User extends Authenticatable implements MustVerifyEmail
 {
