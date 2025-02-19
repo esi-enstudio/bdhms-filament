@@ -15,11 +15,9 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         User::insert([
-            ['name' => 'Emil Sadekin Islam', 'phone' => '01732547755', 'email' => 'nilemil007@gmail.com', 'status' => 'active', 'password' => Hash::make('32133213'), 'remember_token' => Str::random(10), 'email_verified_at' => now(), 'created_at' => now(), 'updated_at' => now()],
-
             ['name' => 'Zm', 'phone' => '01911000002', 'email' => 'zm@gmail.com', 'status' => 'active', 'password' => Hash::make('password'), 'remember_token' => Str::random(10), 'email_verified_at' => now(), 'created_at' => now(), 'updated_at' => now()],
 
-            ['name' => 'Mdo', 'phone' => '01911000003', 'email' => 'mdo@gmail.com', 'status' => 'active', 'password' => Hash::make('password'), 'remember_token' => Str::random(10), 'email_verified_at' => now(), 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Mdo', 'phone' => '01911000003', 'email' => 'mdo1@gmail.com', 'status' => 'active', 'password' => Hash::make('password'), 'remember_token' => Str::random(10), 'email_verified_at' => now(), 'created_at' => now(), 'updated_at' => now()],
 
             ['name' => 'Manager 1', 'phone' => '01911000004', 'email' => 'manager1@gmail.com', 'status' => 'active', 'password' => Hash::make('password'), 'remember_token' => Str::random(10), 'email_verified_at' => now(), 'created_at' => now(), 'updated_at' => now()],
             ['name' => 'Manager 2', 'phone' => '01911100005', 'email' => 'manager2@gmail.com', 'status' => 'active', 'password' => Hash::make('password'), 'remember_token' => Str::random(10), 'email_verified_at' => now(), 'created_at' => now(), 'updated_at' => now()],

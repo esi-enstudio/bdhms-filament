@@ -180,27 +180,26 @@ class RetailerResource extends Resource
         ];
     }
 
-    public static function getEloquentQuery(): Builder
-    {
-//        dd(Route::currentRouteName());
-        $query = parent::getEloquentQuery();
-
-        if (request()->routeIs('filament.admin.resources.retailers.view'))
-        {
-            return $query;
-        }
-
-        if (request()->routeIs('filament.admin.resources.retailers.edit'))
-        {
-            return $query;
-        }
-
-        if (Auth::user()->hasRole('super admin'))
-        {
-            return Retailer::select(['id','house_id','rso_id','code','name','itop_number','enabled','sso','created_at','updated_at']);
-        }
-
-        return Retailer::select(['id','house_id','rso_id','code','name','itop_number','enabled','sso','created_at','updated_at'])
-            ->where('rso_id', Rso::firstWhere('user_id', Auth::id())->id);
-    }
+//    public static function getEloquentQuery(): Builder
+//    {
+//        $query = parent::getEloquentQuery();
+//
+//        if (request()->routeIs('filament.admin.resources.retailers.view'))
+//        {
+//            return $query;
+//        }
+//
+//        if (request()->routeIs('filament.admin.resources.retailers.edit'))
+//        {
+//            return $query;
+//        }
+//
+//        if (Auth::user()->hasRole('super admin'))
+//        {
+//            return Retailer::select(['id','house_id','rso_id','code','name','itop_number','enabled','sso','created_at','updated_at']);
+//        }
+//
+//        return Retailer::select(['id','house_id','rso_id','code','name','itop_number','enabled','sso','created_at','updated_at'])
+//            ->where('rso_id', Rso::firstWhere('user_id', Auth::id())->id);
+//    }
 }

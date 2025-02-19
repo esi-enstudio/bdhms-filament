@@ -215,9 +215,6 @@ class RsoResource extends Resource
             ->filters([
                 //
             ])
-            ->headerActions([
-                ImportAction::make()->importer(RsoImporter::class)
-            ])
             ->actions([
                 ViewAction::make(),
                 EditAction::make(),

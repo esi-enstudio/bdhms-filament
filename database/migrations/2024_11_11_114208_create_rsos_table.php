@@ -17,10 +17,12 @@ return new class extends Migration
             $table->id();
             $table->foreignIdFor(House::class);
             $table->foreignIdFor(User::class);
+            $table->foreignIdFor(User::class, 'supervisor_id');
+            $table->string('name')->index()->nullable();
             $table->string('osrm_code')->unique()->nullable();
             $table->string('employee_code')->unique()->nullable();
-            $table->string('rso_code')->unique()->index()->nullable();
-            $table->string('itop_number')->unique()->index()->nullable();
+            $table->string('rso_code')->unique()->index();
+            $table->string('itop_number')->unique()->index();
             $table->string('pool_number')->unique()->nullable();
             $table->string('personal_number')->unique()->nullable();
             $table->string('bank_account_name')->nullable();

@@ -25,13 +25,13 @@ class DatabaseSeeder extends Seeder
 //         Retailer::factory(250)->create();
 
         $this->call([
+            SuperAdminSeeder::class,
             HouseSeeder::class,
             UserSeeder::class,
             HouseUserSeeder::class,
-            RsoSeeder::class,
+//            RsoSeeder::class,
             RetailerSeeder::class,
             ProductSeeder::class,
-//            PermissionSeeder::class,
         ]);
 
 //        User::factory()->create([
