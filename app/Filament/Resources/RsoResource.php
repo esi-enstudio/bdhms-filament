@@ -4,14 +4,11 @@ namespace App\Filament\Resources;
 
 use App\Filament\Imports\RsoImporter;
 use App\Models\Rso;
-use Filament\Forms;
-use Filament\Tables;
+use EightyNine\ExcelImport\Tables\ExcelImportRelationshipAction;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
-use Filament\Tables\Actions\ImportAction;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
-use Illuminate\Support\Facades\Auth;
 use Filament\Forms\Components\Select;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Actions\ViewAction;
@@ -19,7 +16,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Actions\DeleteAction;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Tables\Actions\BulkActionGroup;
 use App\Filament\Resources\RsoResource\Pages;
 use Filament\Forms\Components\DateTimePicker;
@@ -245,17 +241,17 @@ class RsoResource extends Resource
         ];
     }
 
-    public static function getEloquentQuery(): Builder
-    {
-        $user = Auth::user();
-
-        // If the user is a super admin, show all RSOs
-        if ($user->hasRole('super admin'))
-        {
-            return parent::getEloquentQuery();
-        }
-
-        // Otherwise, only show the RSO that belongs to the logged-in user
-        return parent::getEloquentQuery()->where('user_id', $user->id);
-    }
+//    public static function getEloquentQuery(): Builder
+//    {
+//        $user = Auth::user();
+//
+//        // If the user is a super admin, show all RSOs
+//        if ($user->hasRole('super admin'))
+//        {
+//            return parent::getEloquentQuery();
+//        }
+//
+//        // Otherwise, only show the RSO that belongs to the logged-in user
+//        return parent::getEloquentQuery()->where('user_id', $user->id);
+//    }
 }

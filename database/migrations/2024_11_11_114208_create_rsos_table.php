@@ -50,7 +50,7 @@ return new class extends Migration
             $table->string('sr_no')->unique()->nullable();
             $table->timestamp('joining_date')->nullable();
             $table->timestamp('resign_date')->nullable();
-            $table->string('status')->nullable();
+            $table->string('status')->default('active');
             $table->string('remarks')->nullable();
             $table->string('document')->nullable();
             $table->timestamps();

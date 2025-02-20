@@ -149,14 +149,14 @@ class UserResource extends Resource
         ];
     }
 
-    public static function getEloquentQuery(): Builder
-    {
-        // If the user is a super admin, show all Users
-        if (Auth::user()->hasRole('super admin'))
-        {
-            return parent::getEloquentQuery();
-        }
-
-        return parent::getEloquentQuery()->where('id', Auth::id());
-    }
+//    public static function getEloquentQuery(): Builder
+//    {
+//        // If the user is a super admin, show all Users
+//        if (Auth::user()->hasRole('super admin'))
+//        {
+//            return parent::getEloquentQuery();
+//        }
+//
+//        return parent::getEloquentQuery()->where('id', Auth::id());
+//    }
 }

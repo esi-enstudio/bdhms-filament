@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static whereIn(string $string, $selectedUsers)
  * @method static findOrFail($id)
  * @method static select(string $string, string $string1, string $string2)
+ * @method static upsert(array $users, string[] $array, string[] $array1)
  * @property mixed $documents
  * @property mixed $user
  * @property mixed $user_id

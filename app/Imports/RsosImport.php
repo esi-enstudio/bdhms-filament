@@ -24,17 +24,19 @@ class RsosImport implements ToModel, WithHeadingRow, WithValidation
     {
         return new Rso([
             'house_id' => self::getHouseId($row['dd_code']),
-            'user_id' => self::getUserId($row['user_phone_number']),
-            'supervisor_id' => self::getSupervisorId($row['supervisor_phone_number']),
+//            'user_id' => 10,
+            'user_id' => $row['user_phone_number'],
+            'supervisor_id' => self::getSupervisorId('0'.$row['supervisor_phone_number']),
             'rso_code' => $row['rso_code'],
-            'itop_number' => $row['itop_number'],
-            'pool_number' => $row['pool_number'],
+            'itop_number' => '0'.$row['itop_number'],
+            'pool_number' => '0'.$row['pool_number'],
         ]);
     }
 
     public function rules(): array
     {
         return [
+            'user_id' => ['required','unique:rsos,user_id'],
             '*.user_id' => ['required','unique:rsos,user_id'],
         ];
     }
@@ -50,8 +52,9 @@ class RsosImport implements ToModel, WithHeadingRow, WithValidation
     }
     public static function getSupervisorId(string $supervisorPhoneNumber)
     {
-        return User::where('phone', $supervisorPhoneNumber)->whereHas('roles', function ($query){
-            $query->where('roles.name', 'supervisor');
-        })->first()->id;
+        return User::where('phone', $supervisorPhoneNumber)
+            ->whereHas('roles', function ($query){
+                $query->where('roles.name', 'supervisor');
+            })->first()->id;
     }
 }
