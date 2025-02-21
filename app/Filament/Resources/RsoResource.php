@@ -101,15 +101,19 @@ class RsoResource extends Resource
                 TextInput::make('salary')->numeric(),
                 TextInput::make('category'),
                 TextInput::make('agency_name'),
-                DatePicker::make('dob'),
+                DatePicker::make('dob')->native(false),
                 TextInput::make('nid')->numeric(),
                 TextInput::make('division'),
                 TextInput::make('district'),
                 TextInput::make('thana'),
                 TextInput::make('sr_no'),
-                DateTimePicker::make('joining_date'),
-                DateTimePicker::make('resign_date'),
-                TextInput::make('status'),
+                DatePicker::make('joining_date')->native(false),
+                DatePicker::make('resign_date')->native(false),
+                Select::make('status')
+                ->options([
+                    'active' => 'Active',
+                    'inactive' => 'Inactive',
+                ]),
                 TextInput::make('remarks'),
                 TextInput::make('document'),
             ]);

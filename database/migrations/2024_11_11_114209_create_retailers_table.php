@@ -17,7 +17,7 @@ return new class extends Migration
         Schema::create('retailers', function (Blueprint $table) {
             $table->id();
             $table->foreignIdFor(House::class);
-            $table->foreignIdFor(Rso::class)->nullable();
+            $table->foreignIdFor(Rso::class);
             $table->foreignIdFor(User::class)->nullable();
             $table->string('code')->unique()->index();
             $table->string('name');
