@@ -7,21 +7,21 @@ use App\Models\User;
 use App\Models\House;
 use App\Models\Retailer;
 use App\Models\Rso;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 
-class RetailerImport implements ToModel, WithHeadingRow, WithChunkReading
+class RetailerImport implements ToModel, WithHeadingRow, WithChunkReading, ShouldQueue
 {
 
     /**
      * @param array $row
-     *
-     * @return User|null
+     * @return Retailer
      */
-    public function model(array $row)
+    public function model(array $row): Retailer
     {
         return new Retailer([
             'house_id'      => self::getHouseId($row['dd_code']),
@@ -62,7 +62,7 @@ class RetailerImport implements ToModel, WithHeadingRow, WithChunkReading
         return Rso::query()->firstWhere('itop_number', '0'.$rsoNumber)->id;
     }
 
-    private function transformDate($date)
+    private function transformDate($date): Carbon|string|null
     {
         if (is_numeric($date)) {
             // Convert Excel numeric date to Carbon instance
