@@ -3,13 +3,12 @@
 namespace App\Filament\Resources\RetailerResource\Pages;
 
 use Filament\Actions;
-use Filament\Forms\Components\Actions\Action;
-use App\Imports\RetailerImport;
+use App\Imports\RetailersImport;
+use Maatwebsite\Excel\Facades\Excel;
+use Filament\Notifications\Notification;
 use Filament\Forms\Components\FileUpload;
 use Filament\Resources\Pages\ListRecords;
 use App\Filament\Resources\RetailerResource;
-use EightyNine\ExcelImport\ExcelImportAction;
-
 
 class ListRetailers extends ListRecords
 {
@@ -20,56 +19,19 @@ class ListRetailers extends ListRecords
         return [
             Actions\CreateAction::make(),
             Actions\Action::make('retailerImport')
+                ->slideOver()
                 ->label('Import')
                 ->icon('heroicon-o-arrow-right-end-on-rectangle')
                 ->form([
-                    FileUpload::make('retailer-import')
+                    FileUpload::make('retailerImport')->maxSize(100 * 1024)
                 ])
                 ->action(function (array $data){
-                    dump($data);
+                    $path = public_path('storage/' . $data['retailerImport']);
+
+                    Excel::import(new RetailersImport, $path);
+
+                    Notification::make()->title('Success')->body('Retailers imported successfully.')->success()->send();
                 }),
-//            ExcelImportAction::make()
-//                ->slideOver()
-//                ->color("success")
-//                ->sampleExcel(
-//                    sampleData: [
-//                        [
-//                            'DD Code' => '',
-//                            'Rso Number' => '',
-//                            'Retailer Code' => '',
-//                            'Retailer Name' => '',
-//                            'Owner Name' => '',
-//                            'Owner Number' => '',
-//                            'Itop Number' => '',
-//                            'Enabled' => '',
-//                            'SSO' => '',
-//                            'Service Point' => '',
-//                            'Category' => '',
-//                            'Division' => '',
-//                            'District' => '',
-//                            'Thana' => '',
-//                            'Address' => '',
-//                            'DOB' => '',
-//                            'NID' => '',
-//                            'Lat' => '',
-//                            'Long' => '',
-//                            'BTS Code' => '',
-//
-//                        ],
-//                    ],
-//                    fileName: 'retailer-sample.xlsx',
-//                    // exportClass: RetailerExport::class,
-//                    sampleButtonLabel: 'Download Sample',
-//                    customiseActionUsing: fn(Action $action) => $action->color('primary')
-//                        ->icon('heroicon-m-clipboard'),
-//                )
-//                ->validateUsing([
-//                    'dd_code' => ['required','string'],
-//                    'rso_number' => ['required','numeric'],
-//                    'retailer_code' => ['required'],
-//                    'itop_number' => ['required'],
-//                ])
-//                ->use(RetailerImport::class),
         ];
     }
 }

@@ -3,18 +3,15 @@
 namespace App\Imports;
 
 use Carbon\Carbon;
-use App\Models\User;
 use App\Models\House;
 use App\Models\Retailer;
 use App\Models\Rso;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToModel;
-use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 
-class RetailerImport implements ToModel, WithHeadingRow, WithChunkReading, ShouldQueue
+class RetailersImport implements ToModel, WithHeadingRow, WithChunkReading, ShouldQueue
 {
 
     /**
@@ -28,22 +25,22 @@ class RetailerImport implements ToModel, WithHeadingRow, WithChunkReading, Shoul
             'rso_id'        => self::getRsoId($row['rso_number']),
             'code'          => $row['retailer_code'],
             'name'          => $row['retailer_name'],
-            'owner_name'    => $row['owner_name'],
-            'owner_number'  => $row['owner_number'],
+            // 'owner_name'    => $row['owner_name'],
+            // 'owner_number'  => $row['owner_number'],
             'itop_number'   => $row['itop_number'],
             'enabled'       => $row['enabled'],
-            'sso'           => $row['sso'],
-            'service_point' => $row['service_point'],
-            'category'      => $row['category'],
-            'division'      => $row['division'],
-            'district'      => $row['district'],
-            'thana'         => $row['thana'],
+            // 'sso'           => $row['sso'],
+            // 'service_point' => $row['service_point'],
+            // 'category'      => $row['category'],
+            // 'division'      => $row['division'],
+            // 'district'      => $row['district'],
+            // 'thana'         => $row['thana'],
             'address'       => $row['address'],
             'dob'           => $this->transformDate($row['dob']),
-            'nid'           => $row['nid'],
-            'lat'           => $row['lat'],
-            'long'          => $row['long'],
-            'bts_code'      => $row['bts_code'],
+            // 'nid'           => $row['nid'],
+            // 'lat'           => $row['lat'],
+            // 'long'          => $row['long'],
+            // 'bts_code'      => $row['bts_code'],
         ]);
     }
 
