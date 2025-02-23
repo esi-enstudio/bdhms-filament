@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static truncate()
  * @method static select(string $string, string $string1)
  * @method static when($allRetailersSelected, \Closure $param, \Closure $param1)
+ * @method static upsert(mixed[] $data, string[] $array, string[] $array1)
  * @property mixed $zm
  * @property mixed $manager
  * @property mixed $supervisor
@@ -65,5 +67,13 @@ class Retailer extends Model
     public function house(): BelongsTo
     {
         return $this->belongsTo(House::class);
+    }
+
+
+    protected function itopNumber(): Attribute
+    {
+        return Attribute::make(
+            set: fn(string $value) => '0'.$value,
+        );
     }
 }

@@ -19,11 +19,10 @@ class ListRetailers extends ListRecords
         return [
             Actions\CreateAction::make(),
             Actions\Action::make('retailerImport')
-                ->slideOver()
                 ->label('Import')
                 ->icon('heroicon-o-arrow-right-end-on-rectangle')
                 ->form([
-                    FileUpload::make('retailerImport')->maxSize(100 * 1024)
+                    FileUpload::make('retailerImport')->required()
                 ])
                 ->action(function (array $data){
                     $path = public_path('storage/' . $data['retailerImport']);

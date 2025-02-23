@@ -22,7 +22,6 @@ use Illuminate\Database\Eloquent\Model;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\ImportAction;
 use Filament\Tables\Actions\DeleteBulkAction;
 use App\Filament\Resources\RetailerResource\Pages;
 use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
@@ -50,7 +49,7 @@ class RetailerResource extends Resource
                     ->options(fn(Get $get, ?Model $record) => Rso::query()
                         ->where('status', 'active')
                         ->where('house_id', $get('house_id'))
-                        ->whereNotIn('id', Retailer::whereNotNull('rso_id')->pluck('rso_id'))
+                        ->whereNotIn('id', Retailer::query()->whereNotNull('rso_id')->pluck('rso_id'))
                         ->when($record, fn($query) => $query->orWhere('id', $record->rso_id))
                         ->pluck('itop_number','id')
                     )
@@ -66,7 +65,7 @@ class RetailerResource extends Resource
                         ->whereHas('roles', function ($role){
                             $role->where('roles.name', 'retailer');
                         })
-                        ->whereNotIn('id', Retailer::whereNotNull('user_id')->pluck('user_id'))
+                        ->whereNotIn('id', Retailer::query()->whereNotNull('user_id')->pluck('user_id'))
                         ->when($record, fn($query) => $query->orWhere('id', $record->user_id))
                         ->pluck('name','id')
                     )

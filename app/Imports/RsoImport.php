@@ -18,9 +18,9 @@ class RsoImport implements ToModel, WithHeadingRow, WithChunkReading
     /**
      * @param array $row
      *
-     * @return User|null
+     * @return Rso
      */
-    public function model(array $row)
+    public function model(array $row): Rso
     {
         return new Rso([
             'house_id'              => self::getHouseId($row['dd_code']),
@@ -79,7 +79,7 @@ class RsoImport implements ToModel, WithHeadingRow, WithChunkReading
         return User::query()->firstWhere('phone', '0'.$supervisorNumber)->id;
     }
 
-    private function transformDate($date)
+    private function transformDate($date): Carbon|string|null
     {
         if (is_numeric($date)) {
             // Convert Excel numeric date to Carbon instance
