@@ -21,15 +21,22 @@ class ListRetailers extends ListRecords
             Actions\Action::make('retailerImport')
                 ->label('Import')
                 ->icon('heroicon-o-arrow-right-end-on-rectangle')
+                ->color('success')
                 ->form([
-                    FileUpload::make('retailerImport')->required()
+                    FileUpload::make('retailerImport')
+                    ->label('Upload Retailer List')
+                    ->required()
                 ])
                 ->action(function (array $data){
                     $path = public_path('storage/' . $data['retailerImport']);
 
                     Excel::import(new RetailersImport, $path);
 
-                    Notification::make()->title('Success')->body('Retailers imported successfully.')->success()->send();
+                    Notification::make()
+                    ->title('Success')
+                    ->body('Retailers imported successfully.')
+                    ->success()
+                    ->send();
                 }),
         ];
     }

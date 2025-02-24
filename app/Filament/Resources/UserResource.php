@@ -2,28 +2,30 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Imports\UserImporter;
-use Filament\Forms;
 use App\Models\User;
 use Filament\Tables;
 use Filament\Forms\Form;
-use Filament\Tables\Actions\ImportAction;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
-use Illuminate\Support\Facades\Auth;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\Split;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Forms\Components\FileUpload;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rules\Password;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ImageEntry;
 use App\Filament\Resources\UserResource\Pages;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\UserResource\RelationManagers;
+use Filament\Infolists\Components\Grid;
 use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
+use Filament\Infolists\Components\Section as InfolistSection;
 
 class UserResource extends Resource
 {
@@ -98,6 +100,7 @@ class UserResource extends Resource
                     ->searchable(),
                 TextColumn::make('status')
                     ->badge()
+                    ->formatStateUsing(fn(string $state): string => Str::title($state))
                     ->searchable(),
                 TextColumn::make('houses.code')->badge(),
                 TextColumn::make('roles.name')->badge(),
@@ -128,6 +131,38 @@ class UserResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     ExportBulkAction::make(),
                     Tables\Actions\DeleteBulkAction::make(),
+                ]),
+            ]);
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                InfolistSection::make()
+                ->schema([
+                    Split::make([
+                        InfolistSection::make([
+                            Grid::make(2)
+                            ->schema([
+                                TextEntry::make('name'),
+                                TextEntry::make('phone'),
+                                TextEntry::make('email'),
+                                TextEntry::make('status')->badge('success')->formatStateUsing(fn(string $state): string => Str::title($state)),
+                                TextEntry::make('remarks'),
+                                TextEntry::make('disabled_at'),
+                                TextEntry::make('created_at')->dateTime(),
+                                TextEntry::make('updated_at'),
+                                TextEntry::make('email_verified_at'),
+                            ]),
+                        ]),
+
+                        InfolistSection::make([
+                            ImageEntry::make('avatar')
+                            ->circular()
+                            ->defaultImageUrl(url('https://cdn-icons-png.flaticon.com/512/3607/3607444.png'))
+                        ])->grow(false),
+                    ])->from('md')
                 ]),
             ]);
     }

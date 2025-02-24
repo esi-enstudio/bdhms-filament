@@ -20,22 +20,25 @@ class ListUsers extends ListRecords
         return [
             Actions\CreateAction::make(),
             Actions\Action::make('rsoImport')
-                ->label('Import User Data')
+                ->label('Import Users')
                 ->icon('heroicon-o-document-arrow-up')
                 ->color('warning')
                 ->form([
                     View::make('components.download-sample-files.user-sample'),
-                    FileUpload::make('import-user')
-                        ->label('Upload User List')
-                        ->required()
-                        ->columnSpanFull(),
+                    FileUpload::make('importUsers')
+                    ->label('Upload User List')
+                    ->required(),
                 ])
                 ->action(function (array $data){
-                    $filePath = public_path('storage/'. $data['import-user']);
+                    $path = public_path('storage/'. $data['importUsers']);
 
-                    Excel::import(new UsersImport, $filePath);
+                    Excel::import(new UsersImport, $path);
 
-                    Notification::make()->title('Users imported successfully')->success()->send();
+                    Notification::make()
+                    ->title('Success')
+                    ->body('Users imported successfully.')
+                    ->success()
+                    ->send();
                 })
         ];
     }

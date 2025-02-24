@@ -17,13 +17,13 @@ return new class extends Migration
         Schema::create('retailers', function (Blueprint $table) {
             $table->id();
             $table->foreignIdFor(House::class);
-            $table->foreignIdFor(Rso::class);
+            $table->foreignIdFor(Rso::class)->nullable();
             $table->foreignIdFor(User::class)->nullable();
             $table->string('code')->unique()->index();
             $table->string('name');
             $table->string('owner_name')->nullable();
             $table->string('owner_number')->nullable();
-            $table->string('itop_number')->unique()->index();
+            $table->string('itop_number')->unique()->index()->nullable();
             $table->string('type')->default('telecom');
             $table->string('enabled')->default('Y');
             $table->string('sso')->nullable();
@@ -40,6 +40,9 @@ return new class extends Migration
             $table->string('bts_code')->nullable();
             $table->longText('description')->nullable();
             $table->string('remarks')->nullable();
+            $table->string('has_rso')->nullable();
+            $table->string('has_bp')->nullable();
+            $table->json('others_operator')->nullable();
             $table->string('document')->nullable();
             $table->timestamps();
         });

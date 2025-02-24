@@ -21,39 +21,53 @@ class RetailersImport implements ToCollection, WithHeadingRow, WithChunkReading,
      */
     public function collection(Collection $collection): void
     {
-        $data = $collection->map(function ($row){
+        // 🟢 1. Fetch all house and RSO IDs in one query (to prevent multiple queries inside loop)
+        $houseCodes = $collection->pluck('dd_code')->unique();
+        $rsoNumbers = $collection->pluck('rso_number')->unique();
+
+        $houses = House::whereIn('code', $houseCodes)->pluck('id','code');
+        $rsos = Rso::whereIn('itop_number', $rsoNumbers)->pluck('id','itop_number');
+
+        // 🟢 2. Map data with optimized queries
+        $data = $collection->map(function ($row) use ($houses, $rsos){
             return [
-                'house_id'      => House::query()->firstWhere('code', $row['dd_code'])->id, // self::getHouseId($row['dd_code']),
-                'rso_id'        => Rso::query()->firstWhere('itop_number', '0'.$row['rso_number'])->id, //self::getRsoId($row['rso_number']),
+                'house_id'      => $houses[$row['dd_code']] ?? null,  //House::query()->firstWhere('code', $row['dd_code'])->id,
                 'code'          => $row['retailer_code'],
                 'name'          => $row['retailer_name'],
-                'itop_number'   => $row['itop_number'],
+                'type'          => $row['type'],
                 'enabled'       => $row['enabled'],
+                'sso'           => $row['sso'],
+                'rso_id'        => $rsos['0' . $row['rso_number']] ?? null, //Rso::query()->firstWhere('itop_number', '0'.$row['rso_number'])?->id,
+                'itop_number'   => '0'.$row['itop_number'],
+                'service_point' => $row['service_point'],
+                'category'      => $row['category'],
+                'owner_name'    => $row['owner_name'],
+                'owner_number'  => '0'.$row['owner_number'],
+                'division'      => $row['division'],
+                'district'      => $row['district'],
+                'thana'         => $row['thana'],
                 'address'       => $row['address'],
-                'dob'           => $this->transformDate($row['dob']),
             ];
         })->toArray();
 
-        Retailer::query()->upsert($data, ['code'], [
-            'rso_id', 'name','enabled','address','dob'
-        ]);
+        Retailer::query()->upsert($data, ['code'], ['name', 'type','enabled','sso','rso_id','service_point','category','owner_name','owner_number','division','district','thana','address']);
     }
 
     public function chunkSize(): int
     {
-        return 1000;
+        return 500;
     }
 
-    private function transformDate($date): Carbon|string|null
-    {
-        if (is_numeric($date)) {
-            // Convert Excel numeric date to Carbon instance
-            return Carbon::instance(Date::excelToDateTimeObject($date))->format('Y-m-d');
-        } elseif (strtotime($date)) {
-            // Convert text-based date format
-            return Carbon::parse($date);
-        }
+    // private function transformDate($date): Carbon|string|null
+    // {
+    //     if (is_numeric($date)) {
+    //         // Convert Excel numeric date to Carbon instance
+    //         return Carbon::instance(Date::excelToDateTimeObject($date))->format('Y-m-d');
+    //     } elseif (strtotime($date)) {
+    //         // Convert text-based date format
+    //         return Carbon::parse($date);
+    //     }
 
-        return null; // Handle invalid date
-    }
+    //     return null; // Handle invalid date
+    // }
 }

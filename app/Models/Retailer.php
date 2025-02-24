@@ -40,6 +40,18 @@ class Retailer extends Model
     protected $with = ['rso','house','user'];
 
     /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'others_operator' => 'array',
+        ];
+    }
+
+    /**
      * Relationship with User model
      *
      * @return BelongsTo
