@@ -2,16 +2,22 @@
 
 namespace App\Filament\Resources;
 
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use App\Models\ItopReplace;
 use Illuminate\Validation\Rule;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Select;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
+use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Database\Eloquent\Builder;
+use Filament\Infolists\Components\Section;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Forms\Components\DateTimePicker;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\ItopReplaceResource\Pages;
@@ -97,9 +103,6 @@ class ItopReplaceResource extends Resource
                 Tables\Columns\TextColumn::make('completed_at')
                     ->dateTime()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('requested_at')
-                    ->dateTime()
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -109,6 +112,7 @@ class ItopReplaceResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultPaginationPageOption(5)
             ->filters([
                 //
             ])
@@ -140,10 +144,83 @@ class ItopReplaceResource extends Resource
         ];
     }
 
-    protected function mutateFormDataBeforeCreate(array $data): array
+    public static function infolist(Infolist $infolist): Infolist
     {
-        $data['requested_at'] = now(); // Automatically set current date-time
-        return $data;
+        return $infolist
+            ->schema([
+                Section::make()
+                ->columns([
+                    'xl' => 4,
+                    'lg' => 3,
+                    'md' => 2,
+                ])
+                ->schema([
+                    TextEntry::make('user.name'),
+                    TextEntry::make('retailer.name'),
+                    TextEntry::make('sim_serial'),
+                    TextEntry::make('balance'),
+                    TextEntry::make('reason')->default('N/A'),
+                    TextEntry::make('description')->default('N/A'),
+                    TextEntry::make('completed_at')->default('N/A'),
+                    TextEntry::make('created_at')->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
+                    TextEntry::make('updated_at')->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
+                    TextEntry::make('updated_at')->label('Last Update')->formatStateUsing(fn($state) => Carbon::parse($state)->diffForHumans()),
+                ])
+            ]);
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//     use Filament\Resources\Pages\ViewRecord;
+// use Filament\Tables\Columns\TextColumn;
+// use Filament\Forms\Components\Section;
+// use Filament\Forms\Components\TextInput;
+// use Filament\Tables\Table;
+
+    public static function view(ViewRecord $page): ViewRecord
+    {
+        return $page
+            ->schema([
+                Section::make('Retailer Details')
+                    ->schema([
+                        TextInput::make('retailer.name')->label('Retailer Name')->disabled(),
+                        TextInput::make('retailer.mobile_number')->label('Mobile Number')->disabled(),
+                        TextInput::make('retailer.address')->label('Address')->disabled(),
+                    ])
+                    ->columns(3), // Arrange in 3 columns
+
+                Section::make('Itop Replace Details')
+                    ->schema([
+                        TextInput::make('serial_number')->disabled(),
+                        TextInput::make('balance')->disabled(),
+                        TextInput::make('reason')->disabled(),
+                        TextInput::make('user.name')->label('Replaced By')->disabled(),
+                    ])
+                    ->columns(2),
+
+                Tables\Table::make()
+                    ->query(fn ($record) => ItopReplace::where('retailer_id', $record->retailer_id))
+                    ->columns([
+                        TextColumn::make('serial_number')->sortable()->searchable(),
+                        TextColumn::make('balance')->sortable(),
+                        TextColumn::make('reason')->sortable(),
+                        TextColumn::make('user.name')->label('Replaced By'),
+                    ])
+                    ->defaultSort('created_at', 'desc')
+            ]);
+    }
+
 
 }
