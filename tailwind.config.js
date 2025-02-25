@@ -3,7 +3,6 @@ import forms from '@tailwindcss/forms';
 
 /** @type {import('tailwindcss').Config} */
 export default {
-    presets: [preset],
     content: [
         './app/Filament/**/*.php',
         './resources/views/filament/**/*.blade.php',

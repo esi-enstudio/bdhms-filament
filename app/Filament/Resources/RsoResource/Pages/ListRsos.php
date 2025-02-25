@@ -5,9 +5,9 @@ namespace App\Filament\Resources\RsoResource\Pages;
 use Filament\Actions;
 use App\Imports\RsosImport;
 use Filament\Forms\Components\View;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Filament\Resources\RsoResource;
-use Exception;
 use Filament\Notifications\Notification;
 use Filament\Forms\Components\FileUpload;
 use Filament\Resources\Pages\ListRecords;
@@ -41,8 +41,25 @@ class ListRsos extends ListRecords
                     ->body('Rsos imported successfully.')
                     ->success()
                     ->send();
-                }catch(Exception $e){
-                    dd($e);
+                }catch(\Maatwebsite\Excel\Validators\ValidationException $e){
+                    $errorMessages = collect($e->failures())
+                    ->map(fn ($failure) => "Row {$failure->row()}: " . implode(', ', $failure->errors()))
+                    ->implode('<br>');
+
+                    foreach ($e->failures() as $failure) {
+                        Log::error('Rso Import Validation Error', [
+                            'row' => $failure->row(),
+                            'attribute' => $failure->attribute(),
+                            'errors' => $failure->errors(),
+                            'values' => $failure->values(),
+                        ]);
+                    }
+
+                    Notification::make()
+                        ->title('Validation Failed')
+                        ->danger()
+                        ->body($errorMessages)
+                        ->send();
                 }
             }),
         ];

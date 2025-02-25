@@ -21,7 +21,7 @@ class RetailersImport implements ToCollection, WithHeadingRow, WithChunkReading,
     {
         // 🟢 1. Fetch all house and RSO IDs in one query (to prevent multiple queries inside loop)
         $houseCodes = $collection->pluck('dd_code')->unique();
-        $rsoNumbers = $collection->pluck('rso_number')->unique();
+        $rsoNumbers = $collection->pluck('rso_number')->unique()->map(fn($num) => '0'.$num);
 
         $houses = House::whereIn('code', $houseCodes)->pluck('id','code');
         $rsos = Rso::query()->whereIn('itop_number', $rsoNumbers)->pluck('id','itop_number');
@@ -35,7 +35,7 @@ class RetailersImport implements ToCollection, WithHeadingRow, WithChunkReading,
                 'type'          => $row['type'],
                 'enabled'       => $row['enabled'],
                 'sso'           => $row['sso'],
-                'rso_id'        => $rsos['0' . $row['rso_number']] ?? null, //Rso::query()->firstWhere('itop_number', '0'.$row['rso_number'])?->id,
+                'rso_id'        => $rsos['0'.$row['rso_number']],
                 'itop_number'   => '0'.$row['itop_number'],
                 'service_point' => $row['service_point'],
                 'category'      => $row['category'],
@@ -54,5 +54,34 @@ class RetailersImport implements ToCollection, WithHeadingRow, WithChunkReading,
     public function chunkSize(): int
     {
         return 500;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'house_id' => ['required'],
+            '*.house_id' => ['required'],
+
+            'code' => ['required','unique:retailers,code'],
+            '*.code' => ['required','unique:retailers,code'],
+
+            'name' => ['required','string'],
+            '*.name' => ['required','string'],
+
+            'enabled' => ['required','string'],
+            '*.enabled' => ['required','string'],
+
+            'sso' => ['required','string'],
+            '*.sso' => ['required','string'],
+
+            'rso_id' => ['required'],
+            '*.rso_id' => ['required'],
+
+            'itop_number' => ['required','unique:retailers,itop_number'],
+            '*.itop_number' => ['required','unique:retailers,itop_number'],
+
+            'owner_number' => ['nullable','unique:retailers,owner_number'],
+            '*.owner_number' => ['nullable','unique:retailers,owner_number'],
+        ];
     }
 }

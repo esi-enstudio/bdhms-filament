@@ -11,8 +11,9 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithValidation;
 
-class RsosImport implements ToCollection, WithHeadingRow, WithChunkReading
+class RsosImport implements ToCollection, WithValidation, WithHeadingRow, WithChunkReading
 {
 
     /**
@@ -75,5 +76,43 @@ class RsosImport implements ToCollection, WithHeadingRow, WithChunkReading
     public function chunkSize(): int
     {
         return 500;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'name' => ['required','string'],
+            '*.name' => ['required','string'],
+
+            'rso_code' => ['required','unique:rsos,rso_code'],
+            '*.rso_code' => ['required','unique:rsos,rso_code'],
+
+            'itop_number' => ['required','unique:rsos,itop_number'],
+            '*.itop_number' => ['required','unique:rsos,itop_number'],
+
+            'pool_number' => ['required','unique:rsos,pool_number'],
+            '*.pool_number' => ['required','unique:rsos,pool_number'],
+
+            'personal_number' => ['required','unique:rsos,personal_number'],
+            '*.personal_number' => ['required','unique:rsos,personal_number'],
+
+            'personal_number' => ['required','unique:rsos,personal_number'],
+            '*.personal_number' => ['required','unique:rsos,personal_number'],
+
+            'osrm_code' => ['nullable','unique:rsos,osrm_code'],
+            '*.osrm_code' => ['nullable','unique:rsos,osrm_code'],
+
+            'employee_code' => ['nullable','unique:rsos,employee_code'],
+            '*.employee_code' => ['nullable','unique:rsos,employee_code'],
+
+            'bank_account_number' => ['nullable','unique:rsos,bank_account_number'],
+            '*.bank_account_number' => ['nullable','unique:rsos,bank_account_number'],
+
+            'nid' => ['nullable','unique:rsos,nid'],
+            '*.nid' => ['nullable','unique:rsos,nid'],
+
+            'sr_no' => ['nullable','unique:rsos,sr_no'],
+            '*.sr_no' => ['nullable','unique:rsos,sr_no'],
+        ];
     }
 }

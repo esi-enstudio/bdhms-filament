@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Imports\RetailerImporter;
 use Carbon\Carbon;
 use App\Models\Rso;
 use App\Models\User;

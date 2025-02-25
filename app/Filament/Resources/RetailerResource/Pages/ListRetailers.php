@@ -9,6 +9,8 @@ use Filament\Notifications\Notification;
 use Filament\Forms\Components\FileUpload;
 use Filament\Resources\Pages\ListRecords;
 use App\Filament\Resources\RetailerResource;
+use Filament\Forms\Components\View;
+use Illuminate\Support\Facades\Log;
 
 class ListRetailers extends ListRecords
 {
@@ -19,24 +21,47 @@ class ListRetailers extends ListRecords
         return [
             Actions\CreateAction::make(),
             Actions\Action::make('retailerImport')
-                ->label('Import')
+                ->label('Import Retailers')
                 ->icon('heroicon-o-arrow-right-end-on-rectangle')
                 ->color('success')
                 ->form([
+                    View::make('components.download-sample-files.sample-retailer-list'),
                     FileUpload::make('retailerImport')
                     ->label('Upload Retailer List')
                     ->required()
                 ])
                 ->action(function (array $data){
-                    $path = public_path('storage/' . $data['retailerImport']);
+                    try{
+                        $path = public_path('storage/' . $data['retailerImport']);
 
-                    Excel::import(new RetailersImport, $path);
+                        Excel::import(new RetailersImport, $path);
+
+                        Notification::make()
+                        ->title('Success')
+                        ->body('Retailers imported successfully.')
+                        ->success()
+                        ->send();
+                    }catch(\Maatwebsite\Excel\Validators\ValidationException $e){
+                        $errorMessages = collect($e->failures())
+                        ->map(fn ($failure) => "Row {$failure->row()}: " . implode(', ', $failure->errors()))
+                        ->implode('<br>');
+
+                    foreach ($e->failures() as $failure) {
+                        Log::error('Rso Import Validation Error', [
+                            'row' => $failure->row(),
+                            'attribute' => $failure->attribute(),
+                            'errors' => $failure->errors(),
+                            'values' => $failure->values(),
+                        ]);
+                    }
 
                     Notification::make()
-                    ->title('Success')
-                    ->body('Retailers imported successfully.')
-                    ->success()
-                    ->send();
+                        ->title('Validation Failed')
+                        ->danger()
+                        ->body($errorMessages)
+                        ->send();
+                    }
+
                 }),
         ];
     }
