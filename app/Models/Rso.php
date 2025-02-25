@@ -31,7 +31,7 @@ class Rso extends Model
     use HasFactory;
 
     protected $guarded = [];
-    protected $with = ['user','house'];
+    protected $with = ['user','house','supervisor'];
 
     /**
      * Relationship with User model
@@ -48,13 +48,23 @@ class Rso extends Model
      *
      * @return BelongsTo
      */
+    public function supervisor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'supervisor_id');
+    }
+
+    /**
+     * Relationship with House model
+     *
+     * @return BelongsTo
+     */
     public function house(): BelongsTo
     {
         return $this->belongsTo(House::class);
     }
 
     /**
-     * Relationship with User model
+     * Relationship with Retailer model
      *
      * @return HasMany
      */

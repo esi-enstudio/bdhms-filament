@@ -19,7 +19,7 @@ class ListUsers extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
-            Actions\Action::make('rsoImport')
+            Actions\Action::make('userImport')
                 ->label('Import Users')
                 ->icon('heroicon-o-document-arrow-up')
                 ->color('warning')

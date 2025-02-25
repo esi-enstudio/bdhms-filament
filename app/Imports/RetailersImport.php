@@ -2,7 +2,6 @@
 
 namespace App\Imports;
 
-use Carbon\Carbon;
 use App\Models\House;
 use App\Models\Retailer;
 use App\Models\Rso;
@@ -11,7 +10,6 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class RetailersImport implements ToCollection, WithHeadingRow, WithChunkReading, ShouldQueue
 {
@@ -26,12 +24,12 @@ class RetailersImport implements ToCollection, WithHeadingRow, WithChunkReading,
         $rsoNumbers = $collection->pluck('rso_number')->unique();
 
         $houses = House::whereIn('code', $houseCodes)->pluck('id','code');
-        $rsos = Rso::whereIn('itop_number', $rsoNumbers)->pluck('id','itop_number');
+        $rsos = Rso::query()->whereIn('itop_number', $rsoNumbers)->pluck('id','itop_number');
 
         // 🟢 2. Map data with optimized queries
         $data = $collection->map(function ($row) use ($houses, $rsos){
             return [
-                'house_id'      => $houses[$row['dd_code']] ?? null,  //House::query()->firstWhere('code', $row['dd_code'])->id,
+                'house_id'      => $houses[$row['dd_code']],
                 'code'          => $row['retailer_code'],
                 'name'          => $row['retailer_name'],
                 'type'          => $row['type'],
@@ -57,17 +55,4 @@ class RetailersImport implements ToCollection, WithHeadingRow, WithChunkReading,
     {
         return 500;
     }
-
-    // private function transformDate($date): Carbon|string|null
-    // {
-    //     if (is_numeric($date)) {
-    //         // Convert Excel numeric date to Carbon instance
-    //         return Carbon::instance(Date::excelToDateTimeObject($date))->format('Y-m-d');
-    //     } elseif (strtotime($date)) {
-    //         // Convert text-based date format
-    //         return Carbon::parse($date);
-    //     }
-
-    //     return null; // Handle invalid date
-    // }
 }

@@ -2,17 +2,20 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Imports\RsoImporter;
 use App\Models\Rso;
-use EightyNine\ExcelImport\Tables\ExcelImportRelationshipAction;
+use App\Models\User;
+use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 use Filament\Resources\Resource;
+use App\Filament\Imports\RsoImporter;
 use Filament\Forms\Components\Select;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Illuminate\Database\Eloquent\Model;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Actions\DeleteAction;
@@ -26,10 +29,8 @@ use App\Filament\Resources\RsoResource\Pages\ViewRso;
 use App\Filament\Resources\RsoResource\Pages\ListRsos;
 use App\Filament\Resources\RsoResource\Pages\CreateRso;
 use App\Filament\Resources\RsoResource\RelationManagers;
-use App\Models\User;
-use Filament\Forms\Get;
-use Illuminate\Database\Eloquent\Model;
 use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
+use EightyNine\ExcelImport\Tables\ExcelImportRelationshipAction;
 
 class RsoResource extends Resource
 {
@@ -126,13 +127,13 @@ class RsoResource extends Resource
                 TextColumn::make('house.code')
                     ->numeric()
                     ->sortable(),
-                TextColumn::make('user.name')
-                    ->numeric()
-                    ->sortable(),
+                TextColumn::make('supervisor.name'),
                 TextColumn::make('osrm_code')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('employee_code')
                     ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('name')
+                ->searchable(),
                 TextColumn::make('rso_code')
                     ->searchable(),
                 TextColumn::make('itop_number')
@@ -197,7 +198,8 @@ class RsoResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('status')
-                    ->badge(),
+                    ->badge()
+                    ->formatStateUsing(fn(string $state): string => Str::title($state)),
                 TextColumn::make('remarks')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('document')

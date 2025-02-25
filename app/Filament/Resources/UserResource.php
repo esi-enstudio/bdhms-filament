@@ -103,7 +103,7 @@ class UserResource extends Resource
                     ->formatStateUsing(fn(string $state): string => Str::title($state))
                     ->searchable(),
                 TextColumn::make('houses.code')->badge(),
-                TextColumn::make('roles.name')->badge(),
+                TextColumn::make('roles.name')->badge()->formatStateUsing(fn(string $state): string => Str::title($state)),
                 TextColumn::make('remarks')
                 ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('disabled_at')
@@ -145,15 +145,15 @@ class UserResource extends Resource
                         InfolistSection::make([
                             Grid::make(2)
                             ->schema([
-                                TextEntry::make('name'),
-                                TextEntry::make('phone'),
-                                TextEntry::make('email'),
-                                TextEntry::make('status')->badge('success')->formatStateUsing(fn(string $state): string => Str::title($state)),
-                                TextEntry::make('remarks'),
-                                TextEntry::make('disabled_at'),
-                                TextEntry::make('created_at')->dateTime(),
-                                TextEntry::make('updated_at'),
-                                TextEntry::make('email_verified_at'),
+                                TextEntry::make('name')->default('N/A'),
+                                TextEntry::make('phone')->default('N/A'),
+                                TextEntry::make('email')->default('N/A'),
+                                TextEntry::make('status')->default('N/A')->badge('success')->formatStateUsing(fn(string $state): string => Str::title($state)),
+                                TextEntry::make('remarks')->default('N/A'),
+                                TextEntry::make('disabled_at')->default('N/A'),
+                                TextEntry::make('created_at')->default('N/A')->dateTime(),
+                                TextEntry::make('updated_at')->default('N/A'),
+                                TextEntry::make('email_verified_at')->default('N/A'),
                             ]),
                         ]),
 

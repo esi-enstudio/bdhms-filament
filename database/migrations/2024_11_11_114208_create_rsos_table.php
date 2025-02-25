@@ -16,8 +16,8 @@ return new class extends Migration
         Schema::create('rsos', function (Blueprint $table) {
             $table->id();
             $table->foreignIdFor(House::class);
-            $table->foreignIdFor(User::class);
-            $table->foreignIdFor(User::class, 'supervisor_id');
+            $table->foreignIdFor(User::class)->nullable();
+            $table->foreignIdFor(User::class, 'supervisor_id')->nullable();
             $table->string('name')->index()->nullable();
             $table->string('osrm_code')->unique()->nullable();
             $table->string('employee_code')->unique()->nullable();
