@@ -31,17 +31,19 @@ class ListRsos extends ListRecords
                 ->required(),
             ])
             ->action(function (array $data){
-                try{
-                    $path = public_path('storage/'. $data['importRsos']);
+                $path = public_path('storage/'. $data['importRsos']);
 
-                    Excel::import(new RsosImport, $path);
+                Excel::import(new RsosImport, $path);
 
-                    Notification::make()
+                Notification::make()
                     ->title('Success')
                     ->body('Rsos imported successfully.')
                     ->success()
                     ->send();
-                }catch(\Maatwebsite\Excel\Validators\ValidationException $e){
+
+                try{
+
+                }catch(\Exception $e){
                     $errorMessages = collect($e->failures())
                     ->map(fn ($failure) => "Row {$failure->row()}: " . implode(', ', $failure->errors()))
                     ->implode('<br>');

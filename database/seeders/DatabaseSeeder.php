@@ -27,11 +27,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             SuperAdminSeeder::class,
             HouseSeeder::class,
-            UserSeeder::class,
-            HouseUserSeeder::class,
+//            UserSeeder::class,
+//            HouseUserSeeder::class,
 //            RsoSeeder::class,
-            RetailerSeeder::class,
-            ProductSeeder::class,
+            // RetailerSeeder::class,
+//            ProductSeeder::class,
         ]);
 
 //        User::factory()->create([
@@ -42,6 +42,6 @@ class DatabaseSeeder extends Seeder
 //            'password' => Hash::make('32133213'),
 //        ]);
 
-        ItopReplace::factory(10)->create();
+        // ItopReplace::factory(10)->create();
     }
 }

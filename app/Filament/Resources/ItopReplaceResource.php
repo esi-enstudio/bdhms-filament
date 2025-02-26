@@ -11,6 +11,7 @@ use App\Models\ItopReplace;
 use Illuminate\Validation\Rule;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
+use Illuminate\Support\Facades\Auth;
 use Filament\Forms\Components\Select;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
@@ -22,6 +23,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\ItopReplaceResource\Pages;
 use App\Filament\Resources\ItopReplaceResource\RelationManagers;
+use App\Filament\Resources\ItopReplaceResource\RelationManagers\RetailerRelationManager;
 
 class ItopReplaceResource extends Resource
 {
@@ -37,7 +39,8 @@ class ItopReplaceResource extends Resource
                     ->relationship('user', 'name', fn ($query) => $query->with('roles')->select('id', 'name'))
                     ->getOptionLabelFromRecordUsing(fn($record) => "{$record->name} ({$record->roles->first()?->name})")
                     ->searchable()
-                    ->required(),
+                    ->required()
+                    ->visible(Auth::user()->hasRole('super_admin')), // Only visible to super_admin
                 Select::make('retailer_id')
                     ->relationship('retailer', 'itop_number', fn($query) => $query->select('id','code','itop_number'))
                     ->getOptionLabelFromRecordUsing(fn($record) => "{$record->code} - {$record->itop_number}")
@@ -97,12 +100,15 @@ class ItopReplaceResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('remarks')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('description')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('completed_at')
                     ->dateTime()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -130,7 +136,7 @@ class ItopReplaceResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            RetailerRelationManager::class,
         ];
     }
 

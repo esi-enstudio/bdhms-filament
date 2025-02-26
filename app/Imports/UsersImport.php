@@ -14,7 +14,7 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 
-class UsersImport implements ToCollection, WithHeadingRow, WithChunkReading, ShouldQueue
+class UsersImport implements ToCollection, WithHeadingRow, WithChunkReading
 {
 
     /**

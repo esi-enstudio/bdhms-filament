@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * @method static firstWhere(string $string, string $ddCode)
+ * @method static whereIn(string $string, \Illuminate\Support\Collection $houseCodes)
  */
 class House extends Model
 {
