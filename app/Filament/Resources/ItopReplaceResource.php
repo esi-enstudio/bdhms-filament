@@ -133,10 +133,12 @@ class ItopReplaceResource extends Resource
             ]);
     }
 
+
+
     public static function getRelations(): array
     {
         return [
-            RetailerRelationManager::class,
+            //
         ];
     }
 
@@ -182,18 +184,6 @@ class ItopReplaceResource extends Resource
 
 
 
-
-
-
-
-
-
-
-//     use Filament\Resources\Pages\ViewRecord;
-// use Filament\Tables\Columns\TextColumn;
-// use Filament\Forms\Components\Section;
-// use Filament\Forms\Components\TextInput;
-// use Filament\Tables\Table;
 
     public static function view(ViewRecord $page): ViewRecord
     {

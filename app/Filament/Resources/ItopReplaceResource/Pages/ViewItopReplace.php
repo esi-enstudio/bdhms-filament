@@ -2,9 +2,10 @@
 
 namespace App\Filament\Resources\ItopReplaceResource\Pages;
 
-use App\Filament\Resources\ItopReplaceResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
+use App\Filament\Resources\ItopReplaceResource;
+use App\Filament\Resources\ItopReplaceResource\Widgets\ItopReplacesHistoryTable;
 
 class ViewItopReplace extends ViewRecord
 {
@@ -14,6 +15,13 @@ class ViewItopReplace extends ViewRecord
     {
         return [
             Actions\EditAction::make(),
+        ];
+    }
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            ItopReplacesHistoryTable::make(['record' => $this->getRecord()]), // Add the custom table widget
         ];
     }
 }
