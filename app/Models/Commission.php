@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,46 +25,32 @@ class Commission extends Model
     protected $with = ['house','user','rso','retailer'];
     protected $appends = ['month_name','receive','c_type','c_status','taka'];
 
-    protected array $searchable = [
-        'for',
-        'name',
-        'type',
-        'amount',
-        'house.name',
-        'house.code',
-    ];
-
     // Accessor for formatted_date
     public function getMonthNameAttribute(): string
     {
         return Carbon::parse($this->month)->format('M Y');
-
     }
 
     // Accessor for formatted_date
     public function getReceiveAttribute(): string
     {
         return Carbon::parse($this->receive_date)->toFormattedDayDateString();
-
     }
 
     // Accessor for formatted_date
     public function getCTypeAttribute(): string
     {
         return Str::title(implode(' ', explode('_',$this->type)));
-
     }
     // Accessor for formatted_date
     public function getCStatusAttribute(): string
     {
         return Str::title($this->status);
-
     }
     // Accessor for formatted_date
     public function getTakaAttribute(): string
     {
         return number_format($this->amount, 0, '.', ',') . ' Tk';
-
     }
 
     public function user(): BelongsTo
@@ -80,7 +65,12 @@ class Commission extends Model
 
     public function manager(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'manager');
+        return $this->belongsTo(User::class, 'manager_id');
+    }
+
+    public function supervisor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'supervisor_id');
     }
 
     public function rso(): BelongsTo
