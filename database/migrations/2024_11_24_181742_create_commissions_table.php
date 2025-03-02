@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('for');
             $table->string('type');
             $table->string('name');
-            $table->date('month');
+            $table->string('month', 7);
             $table->string('amount');
             $table->date('receive_date');
             $table->string('description')->nullable();

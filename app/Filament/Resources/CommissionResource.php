@@ -2,14 +2,22 @@
 
 namespace App\Filament\Resources;
 
+use App\Models\Rso;
+use App\Models\User;
 use Filament\Tables;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
+use App\Models\Retailer;
 use Filament\Forms\Form;
 use App\Models\Commission;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
+use Illuminate\Database\Eloquent\Model;
 use Filament\Forms\Components\TextInput;
 use App\Filament\Resources\CommissionResource\Pages;
 use Coolsam\FilamentFlatpickr\Forms\Components\Flatpickr;
@@ -33,6 +41,8 @@ class CommissionResource extends Resource
                     ->schema([
                         Select::make('house_id')
                             ->relationship('house', 'name')
+                            ->live()
+                            ->afterStateUpdated(fn(Set $set) => collect(['manager_id','supervisor_id','rso_id','retailer_id'])->each(fn($field) => $set($field, null)))
                             ->required(),
                         Select::make('for')
                             ->options([
@@ -77,9 +87,6 @@ class CommissionResource extends Resource
                             ->maxLength(255),
                         Flatpickr::make('receive_date')
                             ->required(),
-                        TextInput::make('description')
-                            ->maxLength(255)
-                            ->default(null),
                         TextInput::make('remarks')
                             ->maxLength(255)
                             ->default(null),
@@ -91,26 +98,61 @@ class CommissionResource extends Resource
                             ])
                             ->required()
                             ->default('pending'),
+                        Textarea::make('description')
+                            ->columnSpanFull(),
                     ]),
                 ]),
 
                 Group::make()
                 ->columnSpan(1)
                 ->schema([
-                    Section::make()
+                    Section::make('Field Force')
+                    ->collapsible()
                     ->schema([
                         Select::make('manager_id')
-                            ->relationship('manager', 'name')
-                            ->default(null),
+                            ->label('Manager')
+                            ->options(fn(Get $get, ?Model $record) => User::query()
+                                ->where('status','active')
+                                ->whereHas('houses', function($house) use ($get){
+                                    $house->where('houses.id', $get('house_id'));
+                                })
+                                ->whereHas('roles', function ($role){
+                                    $role->where('roles.name', 'manager');
+                                })
+                                ->when($record, fn($query) => $query->orWhere('id', $record->manager_id))
+                                ->pluck('name','id')
+                            ),
                         Select::make('supervisor_id')
-                            ->relationship('supervisor', 'name')
-                            ->default(null),
+                            ->label('Supervisor')
+                            ->options(fn(Get $get, ?Model $record) => User::query()
+                                ->where('status','active')
+                                ->whereHas('houses', function($house) use ($get){
+                                    $house->where('houses.id', $get('house_id'));
+                                })
+                                ->whereHas('roles', function ($role){
+                                    $role->where('roles.name', 'supervisor');
+                                })
+                                ->when($record, fn($query) => $query->orWhere('id', $record->supervisor_id))
+                                ->pluck('name','id')
+                            ),
                         Select::make('rso_id')
-                            ->relationship('rso', 'name')
-                            ->default(null),
+                            ->label('Rso')
+                            ->searchable()
+                            ->options(fn(Get $get, ?Model $record) => Rso::query()
+                                ->where('status','active')
+                                ->where('house_id', $get('house_id'))
+                                ->when($record, fn($query) => $query->orWhere('id', $record->rso_id))
+                                ->pluck('itop_number','id')
+                            ),
                         Select::make('retailer_id')
-                            ->relationship('retailer', 'name')
-                            ->default(null),
+                            ->label('Retailer')
+                            ->searchable()
+                            ->options(fn(Get $get, ?Model $record) => Retailer::query()
+                                ->where('enabled','Y')
+                                ->where('house_id', $get('house_id'))
+                                ->when($record, fn($query) => $query->orWhere('id', $record->retailer_id))
+                                ->pluck('itop_number','id')
+                            ),
                     ])
                 ]),
 
@@ -127,20 +169,22 @@ class CommissionResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('manager.name')
                     ->numeric()
-                    ->sortable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('supervisor.name')
                     ->numeric()
-                    ->sortable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('rso.name')
                     ->numeric()
-                    ->sortable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('retailer.name')
                     ->numeric()
-                    ->sortable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('for')
-                    ->searchable(),
+                    ->searchable()
+                    ->formatStateUsing(fn(string $state): string => Str::title($state)),
                 Tables\Columns\TextColumn::make('type')
-                    ->searchable(),
+                    ->searchable()
+                    ->formatStateUsing(fn(string $state): string => Str::upper($state)),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('month')
@@ -150,13 +194,15 @@ class CommissionResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('receive_date')
                     ->date()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('description')
-                    ->searchable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('remarks')
-                    ->searchable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('status')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -172,6 +218,7 @@ class CommissionResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
