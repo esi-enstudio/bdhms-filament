@@ -2,23 +2,17 @@
 
 namespace App\Filament\Resources;
 
-use Filament\Forms;
 use Filament\Tables;
 use Filament\Forms\Form;
 use App\Models\Commission;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\Split;
+use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Section;
-
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\CommissionResource\Pages;
+use Coolsam\FilamentFlatpickr\Forms\Components\Flatpickr;
 use App\Filament\Resources\CommissionResource\RelationManagers;
 
 class CommissionResource extends Resource
@@ -31,105 +25,97 @@ class CommissionResource extends Resource
     {
         return $form
             ->schema([
-                Section::make(['xl' => 6])->schema([
-                    Grid::make(['md' => 2])->schema([
+                Group::make()
+                ->columnSpan(2)
+                ->schema([
+                    Section::make()
+                    ->columns(2)
+                    ->schema([
                         Select::make('house_id')
                             ->relationship('house', 'name')
                             ->required(),
-                            Select::make('house_id')
-                            ->relationship('house', 'name')
+                        Select::make('for')
+                            ->options([
+                                'house'         => 'House',
+                                'manager'       => 'Manager',
+                                'supervisor'    => 'Supervisor',
+                                'rso'           => 'Rso',
+                                'retailer'      => 'Retailer',
+                            ])
                             ->required(),
-                            Select::make('house_id')
-                            ->relationship('house', 'name')
+                        Select::make('type')
+                            ->searchable()
+                            ->required()
+                            ->options([
+                                'regional_budget'           => 'Regional Budget',
+                                'shera_partner'             => 'Shera Partner',
+                                'ga'                        => 'GA',
+                                'roi_support'               => 'ROI Support',
+                                'sc_lifting'                => 'SC Lifting',
+                                'weekly_activation'         => 'Weekly Activation',
+                                'deno'                      => 'Deno',
+                                'accelerate'                => 'Accelerate',
+                                'bundle_booster'            => 'Bundle Booster',
+                                'recharge_data_voice_mix'   => 'Recharge, Data, Voice, Mix',
+                                'bsp_rent'                  => 'BSP Rent',
+                                'my_bl_referral'            => 'My BL Referral',
+                                'other'                     => 'Other',
+                            ]),
+                    ]),
+
+                    Section::make()
+                    ->columns(2)
+                    ->schema([
+                        TextInput::make('name')
+                            ->required()
+                            ->maxLength(255),
+                        Flatpickr::make('month')
+                            ->monthSelect()
                             ->required(),
-                            Select::make('house_id')
-                            ->relationship('house', 'name')
+                        TextInput::make('amount')
+                            ->required()
+                            ->maxLength(255),
+                        Flatpickr::make('receive_date')
                             ->required(),
-                    ])
+                        TextInput::make('description')
+                            ->maxLength(255)
+                            ->default(null),
+                        TextInput::make('remarks')
+                            ->maxLength(255)
+                            ->default(null),
+                        Select::make('status')
+                            ->options([
+                                'pending' => 'Pending',
+                                'recieved' => 'Recieved',
+                                'disbursed' => 'Disbursed',
+                            ])
+                            ->required()
+                            ->default('pending'),
+                    ]),
                 ]),
 
-                Section::make(['xl' => 3])->schema([
-                    Grid::make(['md' => 2])->schema([
-                        Select::make('house_id')
-                            ->relationship('house', 'name')
-                            ->required(),
-                            Select::make('house_id')
-                            ->relationship('house', 'name')
-                            ->required(),
-                            Select::make('house_id')
-                            ->relationship('house', 'name')
-                            ->required(),
-                            Select::make('house_id')
-                            ->relationship('house', 'name')
-                            ->required(),
+                Group::make()
+                ->columnSpan(1)
+                ->schema([
+                    Section::make()
+                    ->schema([
+                        Select::make('manager_id')
+                            ->relationship('manager', 'name')
+                            ->default(null),
+                        Select::make('supervisor_id')
+                            ->relationship('supervisor', 'name')
+                            ->default(null),
+                        Select::make('rso_id')
+                            ->relationship('rso', 'name')
+                            ->default(null),
+                        Select::make('retailer_id')
+                            ->relationship('retailer', 'name')
+                            ->default(null),
                     ])
                 ]),
-                // Section::make()
-                //     ->columnSpan(9)
-                //     ->schema([
-                        // Forms\Components\Select::make('house_id')
-                        //     ->relationship('house', 'name')
-                        //     ->required(),
-                //         Forms\Components\TextInput::make('for')
-                //             ->required()
-                //             ->maxLength(255),
-                //         Forms\Components\TextInput::make('type')
-                //             ->required()
-                //             ->maxLength(255),
-                // ]),
-                // Section::make()
-                //     ->columnSpan(3)
-                //     ->schema([
-                //         Forms\Components\Select::make('manager_id')
-                //             ->relationship('manager', 'name')
-                //             ->default(null),
-                //         Forms\Components\Select::make('supervisor_id')
-                //             ->relationship('supervisor', 'name')
-                //             ->default(null),
-                //         Forms\Components\Select::make('rso_id')
-                //             ->relationship('rso', 'name')
-                //             ->default(null),
-                //         Forms\Components\Select::make('retailer_id')
-                //             ->relationship('retailer', 'name')
-                //             ->default(null),
-                //     ]),
-                // Section::make('sec3')->columnSpan(8)->schema([]),
-                // Section::make('sec4')->columnSpan(4)->schema([]),
-
-                // Split::make([
-                //     Section::make([
-
-
-
-                //         Forms\Components\TextInput::make('name')
-                //             ->required()
-                //             ->maxLength(255),
-                //         Forms\Components\DatePicker::make('month')
-                //             ->required(),
-                //         Forms\Components\TextInput::make('amount')
-                //             ->required()
-                //             ->maxLength(255),
-                //         Forms\Components\DatePicker::make('receive_date')
-                //             ->required(),
-                //         Forms\Components\TextInput::make('description')
-                //             ->maxLength(255)
-                //             ->default(null),
-                //         Forms\Components\TextInput::make('remarks')
-                //             ->maxLength(255)
-                //             ->default(null),
-                //         Forms\Components\TextInput::make('status')
-                //             ->required()
-                //             ->maxLength(255)
-                //             ->default('Pending'),
-                //     ]),
-
-                //     Section::make([
-
-                //     ])->grow(false),
-                // ])->from('md'),
 
             ])
-            ->columns(12);
+            ->columns(3);
     }
 
     public static function table(Table $table): Table
