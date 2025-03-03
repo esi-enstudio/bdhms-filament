@@ -41,18 +41,23 @@ class CommissionResource extends Resource
                     ->schema([
                         Select::make('house_id')
                             ->relationship('house', 'name')
+                            ->searchable()
+                            ->preload()
                             ->live()
                             ->afterStateUpdated(fn(Set $set) => collect(['manager_id','supervisor_id','rso_id','retailer_id'])->each(fn($field) => $set($field, null)))
                             ->required(),
                         Select::make('for')
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->live()
                             ->options([
                                 'house'         => 'House',
                                 'manager'       => 'Manager',
                                 'supervisor'    => 'Supervisor',
                                 'rso'           => 'Rso',
                                 'retailer'      => 'Retailer',
-                            ])
-                            ->required(),
+                            ]),
                         Select::make('type')
                             ->searchable()
                             ->required()
@@ -111,6 +116,9 @@ class CommissionResource extends Resource
                     ->schema([
                         Select::make('manager_id')
                             ->label('Manager')
+                            ->searchable()
+                            ->preload()
+                            ->visible(fn(Get $get) => $get('for') === 'manager')
                             ->options(fn(Get $get, ?Model $record) => User::query()
                                 ->where('status','active')
                                 ->whereHas('houses', function($house) use ($get){
@@ -124,6 +132,9 @@ class CommissionResource extends Resource
                             ),
                         Select::make('supervisor_id')
                             ->label('Supervisor')
+                            ->searchable()
+                            ->preload()
+                            ->visible(fn(Get $get) => $get('for') === 'supervisor')
                             ->options(fn(Get $get, ?Model $record) => User::query()
                                 ->where('status','active')
                                 ->whereHas('houses', function($house) use ($get){
@@ -138,6 +149,7 @@ class CommissionResource extends Resource
                         Select::make('rso_id')
                             ->label('Rso')
                             ->searchable()
+                            ->visible(fn(Get $get) => $get('for') === 'rso')
                             ->options(fn(Get $get, ?Model $record) => Rso::query()
                                 ->where('status','active')
                                 ->where('house_id', $get('house_id'))
@@ -147,6 +159,7 @@ class CommissionResource extends Resource
                         Select::make('retailer_id')
                             ->label('Retailer')
                             ->searchable()
+                            ->visible(fn(Get $get) => $get('for') === 'retailer')
                             ->options(fn(Get $get, ?Model $record) => Retailer::query()
                                 ->where('enabled','Y')
                                 ->where('house_id', $get('house_id'))

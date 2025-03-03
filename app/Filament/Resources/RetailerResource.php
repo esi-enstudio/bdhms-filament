@@ -45,17 +45,18 @@ class RetailerResource extends Resource
                     ->required(),
                 Select::make('rso_id')
                     ->label('Rso')
+                    ->searchable()
+                    ->required()
                     ->options(fn(Get $get, ?Model $record) => Rso::query()
                         ->where('status', 'active')
                         ->where('house_id', $get('house_id'))
                         ->whereNotIn('id', Retailer::query()->whereNotNull('rso_id')->pluck('rso_id'))
                         ->when($record, fn($query) => $query->orWhere('id', $record->rso_id))
                         ->pluck('itop_number','id')
-                    )
-                    ->searchable()
-                    ->required(),
+                    ),
                 Select::make('user_id')
                     ->label('User')
+                    ->searchable()
                     ->options(fn(Get $get, ?Model $record) => User::query()
                         ->where('status','active')
                         ->whereHas('houses', function ($house) use ($get){
@@ -67,8 +68,7 @@ class RetailerResource extends Resource
                         ->whereNotIn('id', Retailer::query()->whereNotNull('user_id')->pluck('user_id'))
                         ->when($record, fn($query) => $query->orWhere('id', $record->user_id))
                         ->pluck('name','id')
-                    )
-                    ->searchable(),
+                    ),
                 TextInput::make('code')
                     ->required(),
                 TextInput::make('name')
