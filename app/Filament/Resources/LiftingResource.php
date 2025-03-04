@@ -2,16 +2,25 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\LiftingResource\Pages;
-use App\Filament\Resources\LiftingResource\RelationManagers;
-use App\Models\Lifting;
 use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
 use Filament\Tables;
+use App\Models\Lifting;
+use Filament\Forms\Form;
 use Filament\Tables\Table;
+use Filament\Resources\Resource;
+use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Builder;
+use App\Filament\Resources\LiftingResource\Pages;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Resources\LiftingResource\RelationManagers;
+use App\Models\House;
+use App\Models\Product;
+use App\Models\User;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
+use Illuminate\Support\Facades\Auth;
 
 class LiftingResource extends Resource
 {
@@ -23,22 +32,55 @@ class LiftingResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('house_id')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\Select::make('user_id')
-                    ->relationship('user', 'name')
-                    ->required(),
-                Forms\Components\TextInput::make('products'),
-                Forms\Components\TextInput::make('itopup')
-                    ->numeric(),
-                Forms\Components\TextInput::make('deposit')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\TextInput::make('attempt')
-                    ->required()
-                    ->maxLength(255),
-            ]);
+                Group::make()
+                ->columnSpan(2)
+                ->schema([
+                    Section::make()
+                    ->columns(2)
+                    ->schema([
+                        Select::make('house_id')
+                            ->label('House')
+                            ->required()
+                            ->options(fn() => House::where('status','active')->pluck('code','id')),
+
+                        Select::make('user_id')
+                            ->label('User')
+                            ->default(fn() => Auth::id())
+                            ->required()
+                            ->disabled()
+                            ->options(fn() => User::where('id', Auth::id())->pluck('name','id')),
+
+                        TextInput::make('deposit')
+                            ->required()
+                            ->numeric(),
+
+                        TextInput::make('itopup')
+                            ->readOnly()
+                            ->numeric(),
+
+                        Select::make('attempt')
+                            ->required()
+                            ->default('1st')
+                            ->options([
+                                '1st' => 'First Lifting',
+                                '2nd' => 'Second Lifting',
+                                '3rd' => 'Third Lifting',
+                                '4th' => 'Fourth Lifting',
+                            ]),
+                    ]),
+                ]),
+
+                Group::make()
+                ->columnSpan(1)
+                ->schema([
+                    Section::make()
+                    ->schema([
+                        Repeater::make('products')->schema([
+                            Select::make('product_code')->options(fn() => Product::where('status','active')->pluck('code','id'))
+                        ])
+                    ]),
+                ]),
+            ])->columns(3);
     }
 
     public static function table(Table $table): Table

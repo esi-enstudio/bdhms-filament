@@ -17,10 +17,10 @@ return new class extends Migration
             $table->string('code');
             $table->string('category')->nullable();
             $table->string('sub_category')->nullable();
-            $table->string('face_value')->nullable();
+            $table->string('price')->nullable();
             $table->string('lifting_price');
             $table->string('offer')->nullable();
-            $table->boolean('status')->default(1);
+            $table->string('status')->default('active');
             $table->timestamps();
         });
     }
