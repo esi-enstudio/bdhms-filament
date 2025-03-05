@@ -2,25 +2,23 @@
 
 namespace App\Filament\Resources;
 
-use Filament\Forms;
 use Filament\Tables;
+use App\Models\House;
 use App\Models\Lifting;
+use App\Models\Product;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
-use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\LiftingResource\Pages;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\LiftingResource\RelationManagers;
-use App\Models\House;
-use App\Models\Product;
-use App\Models\User;
-use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Select;
-use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
+use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 
 class LiftingResource extends Resource
 {
@@ -43,21 +41,6 @@ class LiftingResource extends Resource
                             ->required()
                             ->options(fn() => House::where('status','active')->pluck('code','id')),
 
-                        Select::make('user_id')
-                            ->label('User')
-                            ->default(fn() => Auth::id())
-                            ->required()
-                            ->disabled()
-                            ->options(fn() => User::where('id', Auth::id())->pluck('name','id')),
-
-                        TextInput::make('deposit')
-                            ->required()
-                            ->numeric(),
-
-                        TextInput::make('itopup')
-                            ->readOnly()
-                            ->numeric(),
-
                         Select::make('attempt')
                             ->required()
                             ->default('1st')
@@ -67,17 +50,56 @@ class LiftingResource extends Resource
                                 '3rd' => 'Third Lifting',
                                 '4th' => 'Fourth Lifting',
                             ]),
+
+                        TextInput::make('deposit')
+                            ->required()
+                            ->live(onBlur:true)
+                            ->numeric()
+                            ->afterStateUpdated(function(Get $get, Set $set){
+                                $set('itopup', round($get('deposit')/.9625));
+                            }),
+
+                        TextInput::make('itopup')
+                            ->readOnly(),
+                    ]),
+
+                    Section::make()
+                    ->columns(2)
+                    ->schema([
+                        TableRepeater::make('products')
+                        ->reorderable()
+                        ->cloneable()
+                        ->collapsible()
+                        ->schema([
+                            Select::make('product_id')
+                            ->label('Name')
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function(Get $get, Set $set){
+                                $product = Product::findOrFail($get('product_id'));
+                                $set('lifting_price', $product->lifting_price);
+                                $set('total_price', $get('quantity') * $get('lifting_price'));
+                            })
+                            ->options(fn() => Product::where('status','active')->pluck('code','id')),
+                            TextInput::make('quantity')
+                            ->numeric()
+                            ->required()
+                            ->live(onBlur:true)
+                            ->afterStateUpdated(function(Get $get, Set $set){
+                                $set('total_price', $get('quantity') * $get('lifting_price'));
+                            }),
+                            TextInput::make('lifting_price')->readOnly()->required(),
+                            TextInput::make('total_price')->readOnly()->required(),
+                        ]),
                     ]),
                 ]),
 
                 Group::make()
                 ->columnSpan(1)
                 ->schema([
-                    Section::make()
+                    Section::make('Overview')
                     ->schema([
-                        Repeater::make('products')->schema([
-                            Select::make('product_code')->options(fn() => Product::where('status','active')->pluck('code','id'))
-                        ])
+
                     ]),
                 ]),
             ])->columns(3);
@@ -110,6 +132,7 @@ class LiftingResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultPaginationPageOption(5)
             ->filters([
                 //
             ])

@@ -177,14 +177,6 @@ class ItopReplaceResource extends Resource
             ]);
     }
 
-
-
-
-
-
-
-
-
     public static function view(ViewRecord $page): ViewRecord
     {
         return $page
@@ -217,6 +209,4 @@ class ItopReplaceResource extends Resource
                     ->defaultSort('created_at', 'desc')
             ]);
     }
-
-
 }
