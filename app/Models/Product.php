@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
  * @method static search( $search )
  * @method static create( array $attributes )
  * @method static insert(array[] $array)
+ * @method static findOrFail(mixed $param)
+ * @method static where(string $string, string $string1)
  */
 class Product extends Model
 {

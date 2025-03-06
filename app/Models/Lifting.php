@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @method static create( array $validated )
@@ -16,18 +17,18 @@ class Lifting extends Model
     use HasFactory;
 
     protected $guarded = [];
-    protected $with = ['user','ddHouse'];
+    protected $with = ['user','house'];
 
     protected $casts = [
         'products' => 'array',
     ];
 
-    public function ddHouse(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function house(): BelongsTo
     {
         return $this->belongsTo(House::class);
     }
 
-    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

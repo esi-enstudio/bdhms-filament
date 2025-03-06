@@ -12,6 +12,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Str;
 
 class ProductResource extends Resource
 {
@@ -28,10 +29,24 @@ class ProductResource extends Resource
                 Forms\Components\TextInput::make('code')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\TextInput::make('category')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('sub_category')
-                    ->maxLength(255),
+                Forms\Components\Select::make('category')
+                    ->required()
+                    ->options([
+                        'SC' => 'Scratch Card',
+                        'SIM' => 'SIM',
+                        'DEVICE' => 'DEVICE',
+                    ]),
+                Forms\Components\Select::make('sub_category')
+                    ->required()
+                    ->options([
+                        'Voice' => 'Voice',
+                        'Data' => 'Data',
+                        'Desh' => 'Desh',
+                        'Duplicate' => 'Duplicate',
+                        'Swap' => 'Swap',
+                        'Eswap' => 'Eswap',
+                        'Wifi' => 'WIFI',
+                    ]),
                 Forms\Components\TextInput::make('price')
                     ->maxLength(255),
                 Forms\Components\TextInput::make('lifting_price')
@@ -40,11 +55,12 @@ class ProductResource extends Resource
                 Forms\Components\TextInput::make('offer')
                     ->maxLength(255),
                 Forms\Components\Select::make('status')
+                    ->required()
+                    ->default('active')
                     ->options([
                         'active' => 'Active',
                         'inactive' => 'Inactive',
-                    ])
-                    ->required(),
+                    ]),
             ]);
     }
 
@@ -65,9 +81,12 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('lifting_price')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('offer')
-                    ->searchable(),
-                Tables\Columns\IconColumn::make('status')
-                    ->boolean(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color('success')
+                    ->formatStateUsing(fn(string $state): string => Str::title($state)),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
 use Filament\Tables;
 use App\Models\House;
 use App\Models\Lifting;
@@ -29,16 +31,32 @@ class LiftingResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
+            ->columns(3)
             ->schema([
                 Group::make()
-                ->columnSpan(2)
-                ->schema([
+                    ->columnSpan(2)
+                    ->schema([
                     Section::make()
                     ->columns(2)
                     ->schema([
                         Select::make('house_id')
                             ->label('House')
                             ->required()
+                            ->live()
+                            ->afterStateUpdated(function($state, callable $set){
+                                if (!$state) {
+                                    $set('distributor_name', '');
+                                    $set('dd_house_code', '');
+                                    return;
+                                }
+
+                                $house = House::find($state);
+
+                                if ($house) {
+                                    $set('distributor_name', $house->name);
+                                    $set('dd_house_code', $house->code);
+                                }
+                            })
                             ->options(fn() => House::where('status','active')->pluck('code','id')),
 
                         Select::make('attempt')
@@ -49,6 +67,13 @@ class LiftingResource extends Resource
                                 '2nd' => 'Second Lifting',
                                 '3rd' => 'Third Lifting',
                                 '4th' => 'Fourth Lifting',
+                            ]),
+                        Select::make('mode')
+                            ->required()
+                            ->default('cash')
+                            ->options([
+                                'cash' => 'Cash',
+                                'credit' => 'Credit',
                             ]),
 
                         TextInput::make('deposit')
@@ -67,50 +92,72 @@ class LiftingResource extends Resource
                     ->columns(2)
                     ->schema([
                         TableRepeater::make('products')
-                        ->reorderable()
-                        ->cloneable()
-                        ->collapsible()
-                        ->schema([
-                            Select::make('product_id')
-                            ->label('Name')
-                            ->required()
-                            ->live()
+                            ->reorderable()
+                            ->cloneable()
+                            ->collapsible()
                             ->afterStateUpdated(function(Get $get, Set $set){
-                                $product = Product::findOrFail($get('product_id'));
-                                $set('lifting_price', $product->lifting_price);
-                                $set('total_price', $get('quantity') * $get('lifting_price'));
+                                $productsGrandTotal = collect($get('products'))->pluck('sub_total')->sum();
+                                $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
                             })
-                            ->options(fn() => Product::where('status','active')->pluck('code','id')),
-                            TextInput::make('quantity')
-                            ->numeric()
-                            ->required()
-                            ->live(onBlur:true)
-                            ->afterStateUpdated(function(Get $get, Set $set){
-                                $set('total_price', $get('quantity') * $get('lifting_price'));
-                            }),
-                            TextInput::make('lifting_price')->readOnly()->required(),
-                            TextInput::make('total_price')->readOnly()->required(),
+                            ->addAction(function(Get $get, Set $set){
+                                $productsGrandTotal = collect($get('products'))->pluck('sub_total')->sum();
+                                $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
+                            })
+                            ->schema([
+                                Select::make('product_id')
+                                    ->label('Name')
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function(Get $get, Set $set){
+                                        $product = Product::findOrFail($get('product_id'));
+                                        $set('lifting_price', $product->lifting_price);
+                                        $set('sub_total', $get('quantity') * $get('lifting_price'));
+                                    })
+                                    ->options(fn() => Product::where('status','active')->pluck('code','id')),
+                                TextInput::make('quantity')
+                                    ->numeric()
+                                    ->required()
+                                    ->live(onBlur:true)
+                                    ->afterStateUpdated(function(Get $get, Set $set){
+                                        $set('sub_total', $get('quantity') * $get('lifting_price'));
+                                    }),
+                                TextInput::make('lifting_price')->readOnly()->required(),
+                                TextInput::make('sub_total')->readOnly()->required(),
                         ]),
                     ]),
                 ]),
 
                 Group::make()
-                ->columnSpan(1)
-                ->schema([
-                    Section::make('Overview')
+                    ->columnSpan(1)
                     ->schema([
-
+                        Section::make('Overview')
+                            ->schema([
+                                Placeholder::make('distributor_name')
+                                    ->label('')
+                                    ->content(fn ($get) => $get('distributor_name')),
+                                Placeholder::make('dd_house_code')
+                                    ->label('')
+                                    ->content(fn ($get) => $get('dd_house_code')),
+                                Placeholder::make('date')
+                                    ->label('')
+                                    ->content(now()->format('d/m/Y')),
+                                Placeholder::make('itop_cash_display')
+                                    ->label('')
+                                    ->content(fn ($get) => 'Lifting..itop: ' . number_format($get('itopup'), 0) . ' (Cash)'),
+                                Placeholder::make('19tk_display')
+                                    ->label('')
+                                    ->content(fn ($get) => '19tk Min: ' . number_format($get('itopup'), 0) . ' (Cash)'),
+                        ]),
                     ]),
-                ]),
-            ])->columns(3);
+                ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('house_id')
-                    ->numeric()
+                Tables\Columns\TextColumn::make('house.code')
+                    ->label('House')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('user.name')
                     ->numeric()

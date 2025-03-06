@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 /**
  * @method static firstWhere(string $string, string $ddCode)
  * @method static whereIn(string $string, \Illuminate\Support\Collection $houseCodes)
+ * @method static where(string $string, string $string1)
+ * @method static find($state)
  */
 class House extends Model
 {

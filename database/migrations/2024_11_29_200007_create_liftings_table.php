@@ -21,6 +21,7 @@ return new class extends Migration
             $table->integer('itopup')->nullable();
             $table->integer('deposit');
             $table->string('attempt');
+            $table->string('mode');
             $table->timestamps();
         });
     }
