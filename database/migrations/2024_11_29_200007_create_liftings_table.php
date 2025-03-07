@@ -19,9 +19,10 @@ return new class extends Migration
             $table->foreignIdFor( User::class);
             $table->json('products')->nullable();
             $table->integer('itopup')->nullable();
-            $table->integer('deposit');
-            $table->string('attempt');
-            $table->string('mode');
+            $table->integer('deposit')->nullable();
+            $table->string('attempt')->nullable();
+            $table->string('mode')->nullable();
+            $table->string('status')->nullable();
             $table->timestamps();
         });
     }

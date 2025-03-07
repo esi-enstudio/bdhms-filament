@@ -2,24 +2,30 @@
 
 namespace App\Filament\Resources;
 
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\Placeholder;
 use Filament\Tables;
 use App\Models\House;
 use App\Models\Lifting;
 use App\Models\Product;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
+use Illuminate\Support\HtmlString;
+use Filament\Tables\Filters\Filter;
 use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\DatePicker;
+use Illuminate\Database\Eloquent\Builder;
+use Filament\Forms\Components\Placeholder;
 use App\Filament\Resources\LiftingResource\Pages;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\LiftingResource\RelationManagers;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 
 class LiftingResource extends Resource
@@ -31,37 +37,16 @@ class LiftingResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            ->columns(3)
+            ->columns(4)
             ->schema([
                 Group::make()
-                    ->columnSpan(2)
+                    ->visible(fn(Get $get) => $get('lifting_status') == 'yes')
+                    ->columnSpan(3)
                     ->schema([
                     Section::make()
                     ->columns(2)
                     ->schema([
-                        Select::make('house_id')
-                            ->label('House')
-                            ->required()
-                            ->live()
-                            ->afterStateUpdated(function($state, callable $set){
-                                if (!$state) {
-                                    $set('distributor_name', '');
-                                    $set('dd_house_code', '');
-                                    return;
-                                }
-
-                                $house = House::find($state);
-
-                                if ($house) {
-                                    $set('distributor_name', $house->name);
-                                    $set('dd_house_code', $house->code);
-                                }
-                            })
-                            ->options(fn() => House::where('status','active')->pluck('code','id')),
-
                         Select::make('attempt')
-                            ->required()
-                            ->default('1st')
                             ->options([
                                 '1st' => 'First Lifting',
                                 '2nd' => 'Second Lifting',
@@ -69,15 +54,13 @@ class LiftingResource extends Resource
                                 '4th' => 'Fourth Lifting',
                             ]),
                         Select::make('mode')
-                            ->required()
-                            ->default('cash')
+                            ->live()
                             ->options([
                                 'cash' => 'Cash',
                                 'credit' => 'Credit',
                             ]),
 
                         TextInput::make('deposit')
-                            ->required()
                             ->live(onBlur:true)
                             ->numeric()
                             ->afterStateUpdated(function(Get $get, Set $set){
@@ -88,10 +71,7 @@ class LiftingResource extends Resource
                             ->readOnly(),
                     ]),
 
-                    Section::make()
-                    ->columns(2)
-                    ->schema([
-                        TableRepeater::make('products')
+                    TableRepeater::make('products')
                             ->reorderable()
                             ->cloneable()
                             ->collapsible()
@@ -104,51 +84,114 @@ class LiftingResource extends Resource
                                 $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
                             })
                             ->schema([
+                                Hidden::make('category'),
+
                                 Select::make('product_id')
                                     ->label('Name')
-                                    ->required()
                                     ->live()
                                     ->afterStateUpdated(function(Get $get, Set $set){
                                         $product = Product::findOrFail($get('product_id'));
-                                        $set('lifting_price', $product->lifting_price);
-                                        $set('sub_total', $get('quantity') * $get('lifting_price'));
+
+                                        if($product){
+                                            $set('lifting_price', $product->lifting_price);
+                                            $set('price', $product->price);
+
+                                            // Save category directly from product table
+                                            $set('category', $product->category);
+                                        }
+
                                     })
                                     ->options(fn() => Product::where('status','active')->pluck('code','id')),
+                                Select::make('mode')
+                                    ->default('cash')
+                                    ->options([
+                                        'cash' => 'Cash',
+                                        'credit' => 'Credit',
+                                    ]),
                                 TextInput::make('quantity')
                                     ->numeric()
-                                    ->required()
                                     ->live(onBlur:true)
+                                    ->default(0)
                                     ->afterStateUpdated(function(Get $get, Set $set){
-                                        $set('sub_total', $get('quantity') * $get('lifting_price'));
+                                        $qty = $get('quantity');
+
+                                        if($qty == '')
+                                        {
+                                            $qty = 0;
+                                        }
+
+                                        $set('sub_total', $qty * $get('lifting_price'));
+                                        $set('face_value_total', $qty * $get('price'));
                                     }),
-                                TextInput::make('lifting_price')->readOnly()->required(),
-                                TextInput::make('sub_total')->readOnly()->required(),
+                                TextInput::make('lifting_price')->readOnly()->default(0),
+                                Hidden::make('price'),
+                                TextInput::make('sub_total')->readOnly()->default(0),
+                                Hidden::make('face_value_total'),
                         ]),
-                    ]),
                 ]),
 
+                // Overview
                 Group::make()
                     ->columnSpan(1)
                     ->schema([
-                        Section::make('Overview')
+                        Section::make('Lifting Status')
                             ->schema([
-                                Placeholder::make('distributor_name')
+                                Select::make('house_id')
+                                    ->label('House')
+                                    ->required()
+                                    ->options(fn() => House::where('status','active')->pluck('code','id')),
+
+                                Radio::make('lifting_status')
                                     ->label('')
-                                    ->content(fn ($get) => $get('distributor_name')),
-                                Placeholder::make('dd_house_code')
-                                    ->label('')
-                                    ->content(fn ($get) => $get('dd_house_code')),
-                                Placeholder::make('date')
-                                    ->label('')
-                                    ->content(now()->format('d/m/Y')),
-                                Placeholder::make('itop_cash_display')
-                                    ->label('')
-                                    ->content(fn ($get) => 'Lifting..itop: ' . number_format($get('itopup'), 0) . ' (Cash)'),
-                                Placeholder::make('19tk_display')
-                                    ->label('')
-                                    ->content(fn ($get) => '19tk Min: ' . number_format($get('itopup'), 0) . ' (Cash)'),
+                                    ->default('no')
+                                    ->inline()
+                                    ->live()
+                                    ->options([
+                                        'yes' => 'Yes',
+                                        'no' => 'No',
+                                    ])
+                                    ->descriptions([
+                                        'yes' => 'Has Lifting.',
+                                        'no' => 'No Lifting.',
+                                    ]),
+                            ]),
+
+                        Section::make('Overview')
+                            ->visible(fn(Get $get) => $get('lifting_status') == 'yes')
+                            ->schema([
+                                Placeholder::make('product_totals')
+                                    ->label('Product Totals')
+                                    ->content(function(Get $get){
+
+                                        $products = collect($get('products'));
+
+                                        $groupedTotals = $products->groupBy('category')->map(function ($items) {
+                                            return $items->sum('face_value_total');
+                                        });
+
+                                        if ($groupedTotals->isEmpty()) {
+                                            return 'N/A';
+                                        }
+
+                                        $html = '<ul>';
+                                        foreach ($groupedTotals as $subcategory => $total) {
+                                            $html .= "<li>{$subcategory} " . number_format($total) . "</li>";
+                                        }
+                                        $html .= '</ul>';
+
+                                        return new HtmlString($html);
+                                    }),
                         ]),
                     ]),
+
+                    // Products
+                    // Section::make()
+                    // ->visible(fn(Get $get) => $get('lifting_status') == 'yes')
+                    // ->columns(4)
+                    // ->schema([
+
+                    // ]),
+
                 ]);
     }
 
@@ -170,10 +213,13 @@ class LiftingResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('attempt')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('mode')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('status')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
@@ -181,7 +227,22 @@ class LiftingResource extends Resource
             ])
             ->defaultPaginationPageOption(5)
             ->filters([
-                //
+                Filter::make('created_at')
+                    ->form([
+                        DatePicker::make('created_from')->native(false),
+                        DatePicker::make('created_until')->native(false),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['created_from'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
+                            )
+                            ->when(
+                                $data['created_until'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
+                            );
+                    })
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
