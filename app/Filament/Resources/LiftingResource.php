@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use Carbon\Carbon;
 use Filament\Tables;
 use App\Models\House;
 use App\Models\Lifting;
@@ -18,7 +19,6 @@ use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\DatePicker;
 use Illuminate\Database\Eloquent\Builder;
@@ -40,12 +40,17 @@ class LiftingResource extends Resource
             ->columns(4)
             ->schema([
                 Group::make()
-                    ->visible(fn(Get $get) => $get('lifting_status') == 'yes')
+                    ->disabled(fn(Get $get) => $get('status') == 'no')
                     ->columnSpan(3)
                     ->schema([
                     Section::make()
                     ->columns(2)
                     ->schema([
+                        Select::make('house_id')
+                            ->label('House')
+                            ->required()
+                            ->options(fn() => House::where('status','active')->pluck('code','id')),
+
                         Select::make('attempt')
                             ->options([
                                 '1st' => 'First Lifting',
@@ -72,62 +77,61 @@ class LiftingResource extends Resource
                     ]),
 
                     TableRepeater::make('products')
-                            ->reorderable()
-                            ->cloneable()
-                            ->collapsible()
-                            ->afterStateUpdated(function(Get $get, Set $set){
-                                $productsGrandTotal = collect($get('products'))->pluck('sub_total')->sum();
-                                $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
-                            })
-                            ->addAction(function(Get $get, Set $set){
-                                $productsGrandTotal = collect($get('products'))->pluck('sub_total')->sum();
-                                $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
-                            })
-                            ->schema([
-                                Hidden::make('category'),
+                        ->reorderable()
+                        ->cloneable()
+                        ->collapsible()
+                        ->disabled(fn(Get $get) => $get('status') == 'no')
+                        ->afterStateUpdated(function(Get $get, Set $set){
+                            $productsGrandTotal = collect($get('products'))->pluck('sub_total')->sum();
+                            $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
+                        })
+                        ->addAction(function(Get $get, Set $set){
+                            $productsGrandTotal = collect($get('products'))->pluck('sub_total')->sum();
+                            $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
+                        })
+                        ->schema([
+                            Hidden::make('category'),
 
-                                Select::make('product_id')
-                                    ->label('Name')
-                                    ->live()
-                                    ->afterStateUpdated(function(Get $get, Set $set){
-                                        $product = Product::findOrFail($get('product_id'));
+                            Select::make('product_id')
+                                ->label('Name')
+                                ->live()
+                                ->afterStateUpdated(function(Get $get, Set $set){
+                                    $product = Product::findOrFail($get('product_id'));
 
-                                        if($product){
-                                            $set('lifting_price', $product->lifting_price);
-                                            $set('price', $product->price);
+                                    if($product){
+                                        $set('lifting_price', $product->lifting_price);
+                                        $set('price', $product->price);
 
-                                            // Save category directly from product table
-                                            $set('category', $product->category);
-                                        }
+                                        // Save category directly from product table
+                                        $set('category', $product->category);
+                                    }
 
-                                    })
-                                    ->options(fn() => Product::where('status','active')->pluck('code','id')),
-                                Select::make('mode')
-                                    ->default('cash')
-                                    ->options([
-                                        'cash' => 'Cash',
-                                        'credit' => 'Credit',
-                                    ]),
-                                TextInput::make('quantity')
-                                    ->numeric()
-                                    ->live(onBlur:true)
-                                    ->default(0)
-                                    ->afterStateUpdated(function(Get $get, Set $set){
-                                        $qty = $get('quantity');
+                                })
+                                ->options(fn() => Product::where('status','active')->pluck('code','id')),
+                            Select::make('mode')
+                                ->options([
+                                    'cash' => 'Cash',
+                                    'credit' => 'Credit',
+                                ]),
+                            TextInput::make('quantity')
+                                ->numeric()
+                                ->live(onBlur:true)
+                                ->afterStateUpdated(function(Get $get, Set $set){
+                                    $qty = $get('quantity');
 
-                                        if($qty == '')
-                                        {
-                                            $qty = 0;
-                                        }
+                                    if($qty == '')
+                                    {
+                                        $qty = 0;
+                                    }
 
-                                        $set('sub_total', $qty * $get('lifting_price'));
-                                        $set('face_value_total', $qty * $get('price'));
-                                    }),
-                                TextInput::make('lifting_price')->readOnly()->default(0),
-                                Hidden::make('price'),
-                                TextInput::make('sub_total')->readOnly()->default(0),
-                                Hidden::make('face_value_total'),
-                        ]),
+                                    $set('sub_total', $qty * $get('lifting_price'));
+                                    $set('face_value_total', $qty * $get('price'));
+                                }),
+                            TextInput::make('lifting_price')->readOnly()->default(0),
+                            Hidden::make('price'),
+                            TextInput::make('sub_total')->readOnly()->default(0),
+                            Hidden::make('face_value_total'),
+                    ]),
                 ]),
 
                 // Overview
@@ -136,12 +140,7 @@ class LiftingResource extends Resource
                     ->schema([
                         Section::make('Lifting Status')
                             ->schema([
-                                Select::make('house_id')
-                                    ->label('House')
-                                    ->required()
-                                    ->options(fn() => House::where('status','active')->pluck('code','id')),
-
-                                Radio::make('lifting_status')
+                                Radio::make('status')
                                     ->label('')
                                     ->default('no')
                                     ->inline()
@@ -157,7 +156,7 @@ class LiftingResource extends Resource
                             ]),
 
                         Section::make('Overview')
-                            ->visible(fn(Get $get) => $get('lifting_status') == 'yes')
+                            ->disabled(fn(Get $get) => $get('status') == 'no')
                             ->schema([
                                 Placeholder::make('product_totals')
                                     ->label('Product Totals')
@@ -183,15 +182,6 @@ class LiftingResource extends Resource
                                     }),
                         ]),
                     ]),
-
-                    // Products
-                    // Section::make()
-                    // ->visible(fn(Get $get) => $get('lifting_status') == 'yes')
-                    // ->columns(4)
-                    // ->schema([
-
-                    // ]),
-
                 ]);
     }
 
@@ -270,5 +260,10 @@ class LiftingResource extends Resource
             'view' => Pages\ViewLifting::route('/{record}'),
             'edit' => Pages\EditLifting::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->latest('created_at');
     }
 }

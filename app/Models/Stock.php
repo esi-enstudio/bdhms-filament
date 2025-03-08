@@ -6,6 +6,11 @@ use App\Models\House;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @method static where(string $string, mixed $houseId)
+ * @method static whereDate(string $string, string $today)
+ * @method static create(array $array)
+ */
 class Stock extends Model
 {
     protected $guarded = [];

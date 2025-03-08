@@ -16,7 +16,7 @@ return new class extends Migration
             $table->id();
             $table->foreignIdFor( House::class);
             $table->json('products');
-            $table->string('itopup');
+            $table->integer('itopup');
             $table->timestamps();
         });
     }

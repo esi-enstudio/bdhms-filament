@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static latest()
  * @method static sum(string $string)
  * @method static whereBetween(string $string, array $array)
+ * @property mixed $house_id
+ * @property mixed $products
+ * @property mixed $itopup
  */
 class Lifting extends Model
 {
