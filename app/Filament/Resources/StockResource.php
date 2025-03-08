@@ -6,14 +6,20 @@ use Filament\Forms;
 use Filament\Tables;
 use App\Models\Stock;
 use App\Models\Product;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
+use Filament\Infolists\Components\Tabs;
 use Filament\Forms\Components\TextInput;
-use Illuminate\Database\Eloquent\Builder;
+use Filament\Infolists\Components\TextEntry;
 use App\Filament\Resources\StockResource\Pages;
+use Filament\Infolists\Components\RepeatableEntry;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\StockResource\RelationManagers;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
@@ -35,22 +41,50 @@ class StockResource extends Resource
                     ->required()
                     ->maxLength(255),
 
-                    Section::make()
-                    ->schema([
-                        TableRepeater::make('products')
+                    TableRepeater::make('products')
                             ->reorderable()
                             ->cloneable()
                             ->collapsible()
                             ->schema([
-
+                                Hidden::make('category'),
+                                Hidden::make('sub_category'),
                                 Select::make('product_id')
                                     ->label('Name')
+                                    ->live()
+                                    ->afterStateUpdated(function(Get $get, Set $set){
+                                        $product = Product::findOrFail($get('product_id'));
+
+                                        if($product){
+                                            $set('lifting_price', $product->lifting_price);
+                                            $set('price', $product->price);
+
+                                            // Save category directly from product table
+                                            $set('category', $product->category);
+                                            $set('sub_category', $product->sub_category);
+                                        }
+
+                                    })
                                     ->options(fn() => Product::where('status','active')->pluck('code','id')),
 
                                 TextInput::make('quantity')
-                                    ->numeric(),
+                                    ->numeric()
+                                    ->live(onBlur:true)
+                                    ->afterStateUpdated(function(Get $get, Set $set){
+                                        $qty = $get('quantity');
+
+                                        if($qty == '')
+                                        {
+                                            $qty = 0;
+                                        }
+
+                                        $set('lifting_value', $qty * $get('lifting_price'));
+                                        $set('face_value', $qty * $get('price'));
+                                    }),
+                                Hidden::make('lifting_price'),
+                                Hidden::make('price'),
+                                TextInput::make('lifting_value')->readOnly(),
+                                TextInput::make('face_value')->readOnly(),
                         ]),
-                    ]),
             ]);
     }
 
@@ -103,4 +137,35 @@ class StockResource extends Resource
             'edit' => Pages\EditStock::route('/{record}/edit'),
         ];
     }
+
+    // public static function infolist(Infolist $infolist): Infolist
+    // {
+    //     return $infolist
+    //         ->columns(1)
+    //         ->schema([
+    //             Tabs::make('products')
+    //                 ->tabs([
+    //                     Tabs\Tab::make('Scratch Card')
+    //                         ->columns(2)
+    //                         ->schema([
+    //                             TextEntry::make('products.0.sub_category')->label('Sub Category'),
+    //                             TextEntry::make('products.0.quantity')->label('Quantity'),
+    //                             TextEntry::make('products.0.lifting_value')->label('Lifting Value'),
+    //                             TextEntry::make('products.0.face_value')->label('Face Value'),
+    //                         ]),
+    //                     Tabs\Tab::make('Sim')
+    //                         ->schema([
+    //                             // ...
+    //                         ]),
+    //                     Tabs\Tab::make('Device')
+    //                         ->schema([
+    //                             // ...
+    //                         ]),
+    //                     Tabs\Tab::make('Itopup')
+    //                         ->schema([
+    //                             // ...
+    //                         ]),
+    //                     ]),
+    //         ]);
+    // }
 }

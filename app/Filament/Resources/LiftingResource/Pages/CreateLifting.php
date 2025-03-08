@@ -12,7 +12,11 @@ class CreateLifting extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['user_id'] = Auth::id(); // Set user_id when creating
+        // Ensure 'products' is always stored as an array if empty
+        $data['products'] = !$data['products'][0]['quantity'] == null ? $data['products'] : [];
+
+        // Set user_id when creating
+        $data['user_id'] = Auth::id();
         return $data;
     }
 }

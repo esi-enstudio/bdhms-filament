@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources;
 
-use Carbon\Carbon;
 use Filament\Tables;
 use App\Models\House;
 use App\Models\Lifting;
@@ -11,6 +10,7 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Illuminate\Support\HtmlString;
 use Filament\Tables\Filters\Filter;
@@ -91,6 +91,7 @@ class LiftingResource extends Resource
                         })
                         ->schema([
                             Hidden::make('category'),
+                            Hidden::make('sub_category'),
 
                             Select::make('product_id')
                                 ->label('Name')
@@ -104,6 +105,7 @@ class LiftingResource extends Resource
 
                                         // Save category directly from product table
                                         $set('category', $product->category);
+                                        $set('sub_category', $product->sub_category);
                                     }
 
                                 })
@@ -245,6 +247,8 @@ class LiftingResource extends Resource
             ]);
     }
 
+
+
     public static function getRelations(): array
     {
         return [
@@ -265,5 +269,13 @@ class LiftingResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->latest('created_at');
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+
+            ]);
     }
 }
