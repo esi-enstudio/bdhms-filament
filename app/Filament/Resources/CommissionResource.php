@@ -74,7 +74,7 @@ class CommissionResource extends Resource
                                 'recharge_data_voice_mix'   => 'Recharge, Data, Voice, Mix',
                                 'bsp_rent'                  => 'BSP Rent',
                                 'my_bl_referral'            => 'My BL Referral',
-                                'other'                     => 'Other',
+                                'itopup'                    => 'Itop-Up',
                             ]),
                     ]),
 

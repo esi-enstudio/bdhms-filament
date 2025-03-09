@@ -10,6 +10,7 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
+use Illuminate\Validation\Rule;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Illuminate\Support\HtmlString;
@@ -84,6 +85,11 @@ class LiftingResource extends Resource
                                 }),
 
                             TextInput::make('itopup')
+                                ->minValue(0) // Ensures the value is not negative
+                                ->rules(['numeric', 'min:0'])
+                                ->validationMessages([
+                                    'min' => 'The itopup cannot be negative.',
+                                ])
                                 ->readOnly(),
                         ]),
 
