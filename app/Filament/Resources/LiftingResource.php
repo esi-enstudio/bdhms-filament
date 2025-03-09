@@ -15,7 +15,6 @@ use Filament\Resources\Resource;
 use Illuminate\Support\HtmlString;
 use Filament\Tables\Filters\Filter;
 use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
@@ -24,8 +23,6 @@ use Filament\Forms\Components\DatePicker;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\Placeholder;
 use App\Filament\Resources\LiftingResource\Pages;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Resources\LiftingResource\RelationManagers;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 
 class LiftingResource extends Resource
@@ -40,53 +37,66 @@ class LiftingResource extends Resource
             ->columns(4)
             ->schema([
                 Group::make()
-                    ->disabled(fn(Get $get) => $get('status') == 'no')
                     ->columnSpan(3)
                     ->schema([
-                    Section::make()
-                    ->columns(2)
-                    ->schema([
-                        Select::make('house_id')
-                            ->label('House')
-                            ->required()
-                            ->options(fn() => House::where('status','active')->pluck('code','id')),
+                        Section::make('Lifting Status')
+                            ->columns(2)
+                            ->schema([
+                                Select::make('house_id')
+                                ->label('House')
+                                ->live()
+                                ->required()
+                                ->options(fn() => House::where('status','active')->pluck('code','id')),
 
-                        Select::make('attempt')
-                            ->options([
-                                '1st' => 'First Lifting',
-                                '2nd' => 'Second Lifting',
-                                '3rd' => 'Third Lifting',
-                                '4th' => 'Fourth Lifting',
+                                Select::make('status')
+                                ->required()
+                                ->live()
+                                ->hidden(fn(Get $get) => $get('house_id') == "")
+                                ->default('no lifting')
+                                ->options([
+                                    'has lifting' => 'Has Lifting',
+                                    'no lifting' => 'No Lifting',
+                                ]),
                             ]),
-                        Select::make('mode')
-                            ->live()
-                            ->options([
-                                'cash' => 'Cash',
-                                'credit' => 'Credit',
-                            ]),
+                        Section::make()
+                        // ->hidden(fn(Get $get) => $get('status') == 'no lifting')
+                        ->columns(2)
+                        ->schema([
+                            Select::make('attempt')
+                                ->options([
+                                    '1st' => 'First Lifting',
+                                    '2nd' => 'Second Lifting',
+                                    '3rd' => 'Third Lifting',
+                                    '4th' => 'Fourth Lifting',
+                                ]),
+                            Select::make('mode')
+                                ->live()
+                                ->options([
+                                    'cash' => 'Cash',
+                                    'credit' => 'Credit',
+                                ]),
 
-                        TextInput::make('deposit')
-                            ->live(onBlur:true)
-                            ->numeric()
-                            ->afterStateUpdated(function(Get $get, Set $set){
-                                $set('itopup', round($get('deposit')/.9625));
-                            }),
+                            TextInput::make('deposit')
+                                ->live(onBlur:true)
+                                ->numeric()
+                                ->afterStateUpdated(function(Get $get, Set $set){
+                                    $set('itopup', round($get('deposit')/.9625));
+                                }),
 
-                        TextInput::make('itopup')
-                            ->readOnly(),
-                    ]),
+                            TextInput::make('itopup')
+                                ->readOnly(),
+                        ]),
 
                     TableRepeater::make('products')
                         ->reorderable()
                         ->cloneable()
-                        ->collapsible()
-                        ->disabled(fn(Get $get) => $get('status') == 'no')
+                        // ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                         ->afterStateUpdated(function(Get $get, Set $set){
-                            $productsGrandTotal = collect($get('products'))->pluck('sub_total')->sum();
+                            $productsGrandTotal = collect($get('products'))->pluck('lifting_value')->sum();
                             $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
                         })
                         ->addAction(function(Get $get, Set $set){
-                            $productsGrandTotal = collect($get('products'))->pluck('sub_total')->sum();
+                            $productsGrandTotal = collect($get('products'))->pluck('lifting_value')->sum();
                             $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
                         })
                         ->schema([
@@ -126,39 +136,22 @@ class LiftingResource extends Resource
                                         $qty = 0;
                                     }
 
-                                    $set('sub_total', $qty * $get('lifting_price'));
-                                    $set('face_value_total', $qty * $get('price'));
+                                    $set('lifting_value', $qty * $get('lifting_price'));
+                                    $set('value', $qty * $get('price'));
                                 }),
                             TextInput::make('lifting_price')->readOnly()->default(0),
                             Hidden::make('price'),
-                            TextInput::make('sub_total')->readOnly()->default(0),
-                            Hidden::make('face_value_total'),
+                            TextInput::make('lifting_value')->readOnly()->default(0),
+                            Hidden::make('value'),
                     ]),
                 ]),
 
                 // Overview
                 Group::make()
                     ->columnSpan(1)
+                    // ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                     ->schema([
-                        Section::make('Lifting Status')
-                            ->schema([
-                                Radio::make('status')
-                                    ->label('')
-                                    ->default('no')
-                                    ->inline()
-                                    ->live()
-                                    ->options([
-                                        'yes' => 'Yes',
-                                        'no' => 'No',
-                                    ])
-                                    ->descriptions([
-                                        'yes' => 'Has Lifting.',
-                                        'no' => 'No Lifting.',
-                                    ]),
-                            ]),
-
                         Section::make('Overview')
-                            ->disabled(fn(Get $get) => $get('status') == 'no')
                             ->schema([
                                 Placeholder::make('product_totals')
                                     ->label('Product Totals')
@@ -167,7 +160,7 @@ class LiftingResource extends Resource
                                         $products = collect($get('products'));
 
                                         $groupedTotals = $products->groupBy('category')->map(function ($items) {
-                                            return $items->sum('face_value_total');
+                                            return $items->sum('value');
                                         });
 
                                         if ($groupedTotals->isEmpty()) {
@@ -246,8 +239,6 @@ class LiftingResource extends Resource
                 ]),
             ]);
     }
-
-
 
     public static function getRelations(): array
     {

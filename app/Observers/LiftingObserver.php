@@ -16,29 +16,28 @@ class LiftingObserver
         $today = Carbon::today()->toDateString();
         $houseId = $lifting->house_id;
 
-        // Check if today's stock entry exists
+        // Get today's stock
         $stock = Stock::where('house_id', $houseId)
             ->whereDate('created_at', $today)
             ->first();
 
-        if ($stock) {
-            // Directly access products as an array (no json_decode required)
-            $updatedProducts = $this->mergeProducts($stock->products, $lifting->products);
-
-            $stock->update([
-                'products' => $updatedProducts, // Laravel automatically handles JSON storage
-                'itopup' => $stock->itopup + $lifting->itopup,
-            ]);
-        } else {
-            // If no stock entry today, get the last stock entry
+        if (!$stock) {
+            // If no stock today, fetch last available stock
             $lastStock = Stock::where('house_id', $houseId)
                 ->latest('created_at')
                 ->first();
 
+            // Create new stock for today using last stock data
             Stock::create([
                 'house_id' => $houseId,
                 'products' => $this->mergeProducts($lastStock->products ?? [], $lifting->products ?? []),
                 'itopup' => ($lastStock->itopup ?? 0) + $lifting->itopup,
+            ]);
+        } else {
+            // Update existing stock for today
+            $stock->update([
+                'products' => $this->mergeProducts($stock->products, $lifting->products),
+                'itopup' => $stock->itopup + $lifting->itopup,
             ]);
         }
     }
@@ -128,23 +127,46 @@ class LiftingObserver
 
     private function mergeProducts(?array $stockProducts, ?array $liftingProducts): ?array
     {
-        $merged = collect($stockProducts)->map(function ($product) use ($liftingProducts) {
-            $match = collect($liftingProducts)->firstWhere('product_id', $product['product_id']);
+        // Ensure arrays are not null
+        $stockProducts = $stockProducts ?? [];
+        $liftingProducts = $liftingProducts ?? [];
+
+        // If stock is empty, just use lifting products (removing unwanted fields)
+        if (empty($stockProducts)) {
+            return collect($liftingProducts)->map(function ($product) {
+                unset($product['mode'], $product['lifting_price'], $product['price']);
+                return $product;
+            })->toArray();
+        }
+
+        // Convert to collections
+        $stockCollection = collect($stockProducts);
+        $liftingCollection = collect($liftingProducts);
+
+        // Merge matching products
+        $merged = $stockCollection->map(function ($product) use ($liftingCollection) {
+            $match = $liftingCollection->firstWhere('product_id', $product['product_id']);
 
             if ($match) {
                 $product['quantity'] += $match['quantity'];
-                $product['sub_total'] += $match['sub_total'];
-                $product['face_value_total'] += $match['face_value_total'];
+                $product['lifting_value'] += $match['lifting_value'];
+                $product['value'] += $match['value'];
             }
+
+            // Remove unwanted fields
+            unset($product['mode'], $product['lifting_price'], $product['price']);
 
             return $product;
         })->toArray();
 
-        // Add new products that are not already in stock
-        $merged = array_merge($merged, array_filter($liftingProducts, fn($p) => !collect($merged)->contains('product_id', $p['product_id'])));
+        // Add new products (exclude unwanted fields)
+        $newProducts = $liftingCollection->reject(fn($p) => $stockCollection->contains('product_id', $p['product_id']))
+            ->map(function ($p) {
+                unset($p['mode'], $p['lifting_price'], $p['price']);
+                return $p;
+            })->toArray();
 
-        // Remove empty/null product entries
-        return array_values(array_filter($merged, fn($p) => !is_null($p['product_id']) && $p['product_id'] !== ""));
+        return array_values(array_merge($merged, $newProducts));
     }
 
     private function reverseProducts(?array $stockProducts, ?array $oldLiftingProducts): array
@@ -156,14 +178,17 @@ class LiftingObserver
 
             if ($match) {
                 $product['quantity'] -= $match['quantity'];
-                $product['sub_total'] -= $match['sub_total'];
-                $product['face_value_total'] -= $match['face_value_total'];
+                $product['lifting_value'] -= $match['lifting_value'];
+                $product['value'] -= $match['value'];
 
                 // Ensure no negative values
                 if ($product['quantity'] <= 0) $product['quantity'] = 0;
-                if ($product['sub_total'] <= 0) $product['sub_total'] = 0;
-                if ($product['face_value_total'] <= 0) $product['face_value_total'] = 0;
+                if ($product['lifting_value'] <= 0) $product['lifting_value'] = 0;
+                if ($product['value'] <= 0) $product['value'] = 0;
             }
+
+            // Remove unwanted fields before storing
+            unset($product['mode'], $product['lifting_price'], $product['price']);
 
             return $product;
         })->filter(fn ($product) => $product['quantity'] > 0)->values()->toArray();

@@ -10,18 +10,12 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
-use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Section;
-use Filament\Infolists\Components\Tabs;
 use Filament\Forms\Components\TextInput;
-use Filament\Infolists\Components\TextEntry;
+use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\StockResource\Pages;
-use Filament\Infolists\Components\RepeatableEntry;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Resources\StockResource\RelationManagers;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 
 class StockResource extends Resource
@@ -78,12 +72,12 @@ class StockResource extends Resource
                                         }
 
                                         $set('lifting_value', $qty * $get('lifting_price'));
-                                        $set('face_value', $qty * $get('price'));
+                                        $set('value', $qty * $get('price'));
                                     }),
                                 Hidden::make('lifting_price'),
                                 Hidden::make('price'),
                                 TextInput::make('lifting_value')->readOnly(),
-                                TextInput::make('face_value')->readOnly(),
+                                TextInput::make('value')->readOnly(),
                         ]),
             ]);
     }
@@ -100,8 +94,7 @@ class StockResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
@@ -138,34 +131,8 @@ class StockResource extends Resource
         ];
     }
 
-    // public static function infolist(Infolist $infolist): Infolist
-    // {
-    //     return $infolist
-    //         ->columns(1)
-    //         ->schema([
-    //             Tabs::make('products')
-    //                 ->tabs([
-    //                     Tabs\Tab::make('Scratch Card')
-    //                         ->columns(2)
-    //                         ->schema([
-    //                             TextEntry::make('products.0.sub_category')->label('Sub Category'),
-    //                             TextEntry::make('products.0.quantity')->label('Quantity'),
-    //                             TextEntry::make('products.0.lifting_value')->label('Lifting Value'),
-    //                             TextEntry::make('products.0.face_value')->label('Face Value'),
-    //                         ]),
-    //                     Tabs\Tab::make('Sim')
-    //                         ->schema([
-    //                             // ...
-    //                         ]),
-    //                     Tabs\Tab::make('Device')
-    //                         ->schema([
-    //                             // ...
-    //                         ]),
-    //                     Tabs\Tab::make('Itopup')
-    //                         ->schema([
-    //                             // ...
-    //                         ]),
-    //                     ]),
-    //         ]);
-    // }
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->latest('created_at');
+    }
 }
