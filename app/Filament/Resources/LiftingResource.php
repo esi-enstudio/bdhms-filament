@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use Filament\Tables;
 use App\Models\House;
+use App\Models\Stock;
 use App\Models\Lifting;
 use App\Models\Product;
 use Filament\Forms\Get;
@@ -157,6 +158,35 @@ class LiftingResource extends Resource
                     ->columnSpan(1)
                     // ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                     ->schema([
+                        Section::make('Stock')
+                            ->schema([
+                                Placeholder::make('stocks')
+                                ->label('Stocks')
+                                ->content(function () {
+                                    // Fetch the data from the stocks table
+                                    $stocks = Stock::all();
+
+                                    // Extract the products column and flatten the array
+                                    $products = $stocks->pluck('products')->flatten(1);
+
+                                    // Group the data by category and sub_category
+                                    $groupedProducts = $products->groupBy(['category', 'sub_category']);
+
+                                    // Format the grouped data for display
+                                    $content = '';
+                                    foreach ($groupedProducts as $category => $subCategories) {
+                                        $content .= "<strong>Category: {$category}</strong><br>";
+                                        foreach ($subCategories as $subCategory => $items) {
+                                            $content .= "&nbsp;&nbsp;<strong>Sub Category: {$subCategory}</strong><br>";
+                                            foreach ($items as $item) {
+                                                $content .= "&nbsp;&nbsp;&nbsp;&nbsp;Product ID: {$item['product_id']}, Quantity: {$item['quantity']}, Lifting Value: {$item['lifting_value']}, Value: {$item['value']}<br>";
+                                            }
+                                        }
+                                    }
+
+                                    return $content;
+                                })
+                            ]),
                         Section::make('Overview')
                             ->schema([
                                 Placeholder::make('product_totals')
