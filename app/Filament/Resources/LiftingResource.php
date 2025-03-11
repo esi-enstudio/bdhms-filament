@@ -158,35 +158,6 @@ class LiftingResource extends Resource
                     ->columnSpan(1)
                     // ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                     ->schema([
-                        Section::make('Stock')
-                            ->schema([
-                                Placeholder::make('stocks')
-                                ->label('Stocks')
-                                ->content(function () {
-                                    // Fetch the data from the stocks table
-                                    $stocks = Stock::all();
-
-                                    // Extract the products column and flatten the array
-                                    $products = $stocks->pluck('products')->flatten(1);
-
-                                    // Group the data by category and sub_category
-                                    $groupedProducts = $products->groupBy(['category', 'sub_category']);
-
-                                    // Format the grouped data for display
-                                    $content = '';
-                                    foreach ($groupedProducts as $category => $subCategories) {
-                                        $content .= "<strong>Category: {$category}</strong><br>";
-                                        foreach ($subCategories as $subCategory => $items) {
-                                            $content .= "&nbsp;&nbsp;<strong>Sub Category: {$subCategory}</strong><br>";
-                                            foreach ($items as $item) {
-                                                $content .= "&nbsp;&nbsp;&nbsp;&nbsp;Product ID: {$item['product_id']}, Quantity: {$item['quantity']}, Lifting Value: {$item['lifting_value']}, Value: {$item['value']}<br>";
-                                            }
-                                        }
-                                    }
-
-                                    return $content;
-                                })
-                            ]),
                         Section::make('Overview')
                             ->schema([
                                 Placeholder::make('product_totals')
@@ -211,7 +182,48 @@ class LiftingResource extends Resource
 
                                         return new HtmlString($html);
                                     }),
-                        ]),
+                            ]),
+
+                        Section::make('Stocks')
+                            ->schema([
+                                Placeholder::make('stocks')
+                                ->label('')
+                                ->content(function () {
+                                    // Fetch the data from the stocks table
+                                    $stocks = Stock::all();
+
+                                    // Extract the products column and flatten the array
+                                    $products = $stocks->pluck('products')->flatten(1);
+
+                                    // Group the data by category and sub_category
+                                    $groupedProducts = $products->groupBy(['category', 'sub_category']);
+
+                                    // Start building the HTML content
+                                    $html = '';
+
+                                    // Loop through the grouped data
+                                    foreach ($groupedProducts as $category => $subCategories) {
+                                        $html .= "<strong>Category: {$category}</strong><br>";
+                                        $html .= '<ul>';
+                                        foreach ($subCategories as $subCategory => $items) {
+                                            $html .= "<li><strong>Sub Category: {$subCategory}</strong></li>";
+                                            $html .= '<ul>';
+                                            foreach ($items as $item) {
+                                                // Fetch the product name using the relationship
+                                                $product = Product::firstWhere('id', $item['product_id']);
+                                                $productName = $product ? $product->name : 'Unknown Product';
+
+                                                $html .= "<li>Product Name: {$productName} <br> Quantity: ".number_format($item['quantity'])." <br> Lifting Value: {$item['lifting_value']} <br> Value: {$item['value']}<br><br></li>";
+                                            }
+                                            $html .= '</ul>';
+                                        }
+                                        $html .= '</ul>';
+                                    }
+
+                                    // Return the HTML content as an HtmlString
+                                    return new HtmlString($html);
+                                })
+                            ]),
                     ]),
                 ]);
     }
