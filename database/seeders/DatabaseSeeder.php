@@ -19,11 +19,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-//         User::factory(280)->create();
-//         DdHouse::factory(3)->create();
-//         Rso::factory(25)->create();
-//         Retailer::factory(250)->create();
-
         $this->call([
             SuperAdminSeeder::class,
             HouseSeeder::class,

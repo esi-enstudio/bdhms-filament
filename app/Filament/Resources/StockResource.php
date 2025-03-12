@@ -16,13 +16,16 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\StockResource\Pages;
+use Carbon\Carbon;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 
 class StockResource extends Resource
 {
     protected static ?string $model = Stock::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-circle-stack';
+
+    protected static ?string $navigationGroup = 'Daily Sales & Stock';
 
     public static function form(Form $form): Form
     {
@@ -91,9 +94,12 @@ class StockResource extends Resource
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('itopup')
-                    ->searchable(),
+                    ->formatStateUsing(function ($state) {
+                        return number_format($state, 0, '.', ',');
+                    }),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
                     ->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()

@@ -11,7 +11,6 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
-use Illuminate\Validation\Rule;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Illuminate\Support\HtmlString;
@@ -31,7 +30,9 @@ class LiftingResource extends Resource
 {
     protected static ?string $model = Lifting::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
+
+    protected static ?string $navigationGroup = 'Daily Sales & Stock';
 
     public static function form(Form $form): Form
     {
@@ -61,7 +62,7 @@ class LiftingResource extends Resource
                                 ]),
                             ]),
                         Section::make()
-                        // ->hidden(fn(Get $get) => $get('status') == 'no lifting')
+                        ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                         ->columns(2)
                         ->schema([
                             Select::make('attempt')
@@ -97,7 +98,7 @@ class LiftingResource extends Resource
                     TableRepeater::make('products')
                         ->reorderable()
                         ->cloneable()
-                        // ->hidden(fn(Get $get) => $get('status') == 'no lifting')
+                        ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                         ->afterStateUpdated(function(Get $get, Set $set){
                             $productsGrandTotal = collect($get('products'))->pluck('lifting_value')->sum();
                             $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
@@ -156,9 +157,9 @@ class LiftingResource extends Resource
                 // Overview
                 Group::make()
                     ->columnSpan(1)
-                    // ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                     ->schema([
                         Section::make('Overview')
+                        ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                             ->schema([
                                 Placeholder::make('product_totals')
                                     ->label('Product Totals')

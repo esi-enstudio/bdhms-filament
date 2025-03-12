@@ -19,15 +19,17 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Textarea;
 use Illuminate\Database\Eloquent\Model;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\DatePicker;
 use App\Filament\Resources\CommissionResource\Pages;
-use Coolsam\FilamentFlatpickr\Forms\Components\Flatpickr;
 use App\Filament\Resources\CommissionResource\RelationManagers;
 
 class CommissionResource extends Resource
 {
     protected static ?string $model = Commission::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-currency-bangladeshi';
+
+    protected static ?string $navigationGroup = 'Services';
 
     public static function form(Form $form): Form
     {
@@ -40,7 +42,7 @@ class CommissionResource extends Resource
                     ->columns(2)
                     ->schema([
                         Select::make('house_id')
-                            ->relationship('house', 'name')
+                            ->relationship('house', 'code')
                             ->searchable()
                             ->preload()
                             ->live()
@@ -84,13 +86,16 @@ class CommissionResource extends Resource
                         TextInput::make('name')
                             ->required()
                             ->maxLength(255),
-                        Flatpickr::make('month')
-                            ->monthSelect()
+                        DatePicker::make('month')
+                            ->native()
+                            ->extraInputAttributes(['type' => 'month'])
+                            ->format('Y-m')
+                            ->formatStateUsing(fn($state) => $state)
                             ->required(),
                         TextInput::make('amount')
                             ->required()
                             ->maxLength(255),
-                        Flatpickr::make('receive_date')
+                        DatePicker::make('receive_date')
                             ->required(),
                         TextInput::make('remarks')
                             ->maxLength(255)

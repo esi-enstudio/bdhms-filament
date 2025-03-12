@@ -3,21 +3,20 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\RsoSalesResource\Pages;
-use App\Filament\Resources\RsoSalesResource\RelationManagers;
 use App\Models\RsoSales;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class RsoSalesResource extends Resource
 {
     protected static ?string $model = RsoSales::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
+
+    protected static ?string $navigationGroup = 'Daily Sales & Stock (Rso)';
 
     public static function form(Form $form): Form
     {

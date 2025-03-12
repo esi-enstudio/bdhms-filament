@@ -17,7 +17,9 @@ class RsoLiftingResource extends Resource
 {
     protected static ?string $model = RsoLifting::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
+
+    protected static ?string $navigationGroup = 'Daily Sales & Stock (Rso)';
 
     public static function form(Form $form): Form
     {

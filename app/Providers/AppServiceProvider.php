@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Models\Sales;
 use App\Models\Lifting;
+use App\Models\Commission;
 use App\Observers\SalesObserver;
 use App\Observers\LiftingObserver;
+use App\Observers\CommissionObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -25,5 +27,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Lifting::observe(LiftingObserver::class);
         Sales::observe(SalesObserver::class);
+        Commission::observe(CommissionObserver::class);
     }
 }
