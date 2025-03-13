@@ -24,10 +24,10 @@ class Stock extends Model
     {
         return $this->belongsTo(House::class);
     }
-    // Stock.php (Model)
-    public function products()
-    {
-        // Assuming the JSON data in the `products` column has a `product_id` field
-        return $this->hasMany(Product::class, 'id', 'product_id');
-    }
+
+    // public function products()
+    // {
+    //     // Assuming the JSON data in the `products` column has a `product_id` field
+    //     return $this->hasMany(Product::class, 'id', 'product_id');
+    // }
 }

@@ -18,6 +18,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\StockResource\Pages;
+use Filament\Forms\Components\Group;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 
 class StockResource extends Resource
@@ -32,57 +33,58 @@ class StockResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('house_id')
+                Select::make('house_id')
+                    ->label('House')
                     ->options(fn() => House::where('status','active')->pluck('code','id'))
                     ->required(),
-                Forms\Components\TextInput::make('itopup')
+                TextInput::make('itopup')
                     ->required()
                     ->maxLength(255),
 
-                    TableRepeater::make('products')
-                            ->reorderable()
-                            ->cloneable()
-                            ->collapsible()
-                            ->schema([
-                                Hidden::make('category'),
-                                Hidden::make('sub_category'),
-                                Select::make('product_id')
-                                    ->label('Name')
-                                    ->live()
-                                    ->afterStateUpdated(function(Get $get, Set $set){
-                                        $product = Product::findOrFail($get('product_id'));
+                TableRepeater::make('products')
+                        ->reorderable()
+                        ->cloneable()
+                        ->collapsible()
+                        ->schema([
+                            Hidden::make('category'),
+                            Hidden::make('sub_category'),
+                            Select::make('product_id')
+                                ->label('Name')
+                                ->live()
+                                ->afterStateUpdated(function(Get $get, Set $set){
+                                    $product = Product::findOrFail($get('product_id'));
 
-                                        if($product){
-                                            $set('lifting_price', $product->lifting_price);
-                                            $set('price', $product->price);
+                                    if($product){
+                                        $set('lifting_price', $product->lifting_price);
+                                        $set('price', $product->price);
 
-                                            // Save category directly from product table
-                                            $set('category', $product->category);
-                                            $set('sub_category', $product->sub_category);
-                                        }
+                                        // Save category directly from product table
+                                        $set('category', $product->category);
+                                        $set('sub_category', $product->sub_category);
+                                    }
 
-                                    })
-                                    ->options(fn() => Product::where('status','active')->pluck('code','id')),
+                                })
+                                ->options(fn() => Product::where('status','active')->pluck('code','id')),
 
-                                TextInput::make('quantity')
-                                    ->numeric()
-                                    ->live(onBlur:true)
-                                    ->afterStateUpdated(function(Get $get, Set $set){
-                                        $qty = $get('quantity');
+                            TextInput::make('quantity')
+                                ->numeric()
+                                ->live(onBlur:true)
+                                ->afterStateUpdated(function(Get $get, Set $set){
+                                    $qty = $get('quantity');
 
-                                        if($qty == '')
-                                        {
-                                            $qty = 0;
-                                        }
+                                    if($qty == '')
+                                    {
+                                        $qty = 0;
+                                    }
 
-                                        $set('lifting_value', $qty * $get('lifting_price'));
-                                        $set('value', $qty * $get('price'));
-                                    }),
-                                Hidden::make('lifting_price'),
-                                Hidden::make('price'),
-                                TextInput::make('lifting_value')->readOnly(),
-                                TextInput::make('value')->readOnly(),
-                        ]),
+                                    $set('lifting_value', $qty * $get('lifting_price'));
+                                    $set('value', $qty * $get('price'));
+                                }),
+                            Hidden::make('lifting_price'),
+                            Hidden::make('price'),
+                            TextInput::make('lifting_value')->readOnly(),
+                            TextInput::make('value')->readOnly(),
+                    ]),
             ]);
     }
 

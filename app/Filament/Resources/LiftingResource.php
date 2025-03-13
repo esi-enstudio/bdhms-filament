@@ -49,7 +49,10 @@ class LiftingResource extends Resource
                                 ->label('House')
                                 ->live()
                                 ->required()
-                                ->options(fn() => House::where('status','active')->pluck('code','id')),
+                                ->options(fn() => House::where('status','active')->pluck('code','id'))
+                                ->afterStateUpdated(fn ($state, callable $set) =>
+                                    $set('stocks', self::getStockPreview($state))
+                                ),
 
                                 Select::make('status')
                                 ->required()
@@ -187,46 +190,117 @@ class LiftingResource extends Resource
 
                         Section::make('Stocks')
                             ->schema([
+                                // Placeholder::make('stocks')
+                                // ->label('')
+                                // ->content(function () {
+                                //     // Fetch the data from the stocks table
+                                //     $stocks = Stock::all();
+
+                                //     // Extract the products column and flatten the array
+                                //     $products = $stocks->pluck('products')->flatten(1);
+
+                                //     // Group the data by category and sub_category
+                                //     $groupedProducts = $products->groupBy(['category', 'sub_category']);
+
+                                //     // Start building the HTML content
+                                //     $html = '';
+
+                                //     // Loop through the grouped data
+                                //     foreach ($groupedProducts as $category => $subCategories) {
+                                //         $html .= "<strong>Category: {$category}</strong><br>";
+                                //         $html .= '<ul>';
+                                //         foreach ($subCategories as $subCategory => $items) {
+                                //             $html .= "<li><strong>Sub Category: {$subCategory}</strong></li>";
+                                //             $html .= '<ul>';
+                                //             foreach ($items as $item) {
+                                //                 // Fetch the product name using the relationship
+                                //                 $product = Product::firstWhere('id', $item['product_id']);
+                                //                 $productName = $product ? $product->name : 'Unknown Product';
+
+                                //                 $html .= "<li>Product Name: {$productName} <br> Quantity: ".number_format($item['quantity'])." <br> Lifting Value: {$item['lifting_value']} <br> Value: {$item['value']}<br><br></li>";
+                                //             }
+                                //             $html .= '</ul>';
+                                //         }
+                                //         $html .= '</ul>';
+                                //     }
+
+                                //     // Return the HTML content as an HtmlString
+                                //     return new HtmlString($html);
+                                // })
                                 Placeholder::make('stocks')
-                                ->label('')
-                                ->content(function () {
-                                    // Fetch the data from the stocks table
-                                    $stocks = Stock::all();
-
-                                    // Extract the products column and flatten the array
-                                    $products = $stocks->pluck('products')->flatten(1);
-
-                                    // Group the data by category and sub_category
-                                    $groupedProducts = $products->groupBy(['category', 'sub_category']);
-
-                                    // Start building the HTML content
-                                    $html = '';
-
-                                    // Loop through the grouped data
-                                    foreach ($groupedProducts as $category => $subCategories) {
-                                        $html .= "<strong>Category: {$category}</strong><br>";
-                                        $html .= '<ul>';
-                                        foreach ($subCategories as $subCategory => $items) {
-                                            $html .= "<li><strong>Sub Category: {$subCategory}</strong></li>";
-                                            $html .= '<ul>';
-                                            foreach ($items as $item) {
-                                                // Fetch the product name using the relationship
-                                                $product = Product::firstWhere('id', $item['product_id']);
-                                                $productName = $product ? $product->name : 'Unknown Product';
-
-                                                $html .= "<li>Product Name: {$productName} <br> Quantity: ".number_format($item['quantity'])." <br> Lifting Value: {$item['lifting_value']} <br> Value: {$item['value']}<br><br></li>";
-                                            }
-                                            $html .= '</ul>';
-                                        }
-                                        $html .= '</ul>';
-                                    }
-
-                                    // Return the HTML content as an HtmlString
-                                    return new HtmlString($html);
-                                })
+                                    ->label('')
+                                    ->content(fn ($get) => new HtmlString($get('stocks') ?? 'Select a house to view stock.')),
                             ]),
                     ]),
                 ]);
+    }
+
+    private static function getStockPreview(?int $houseId): string
+    {
+        if (!$houseId) {
+            return 'No house selected.';
+        }
+
+        $stock = Stock::where('house_id', $houseId)->first();
+        if (!$stock || empty($stock->products)) {
+            return 'No stock available for this house.';
+        }
+
+        // Get product names from the database
+        $productIds = collect($stock->products)->pluck('product_id')->unique();
+
+        // Fetch product details from the products table
+        $productDetails = Product::whereIn('id', $productIds)
+        ->get(['id', 'name', 'lifting_price', 'price']) // Ensure these columns exist in your products table
+        ->keyBy('id'); // Index by product ID for easy lookup
+
+        // Group stock by category & sub-category
+        // $groupedStock = collect($stock->products)
+        //     ->groupBy('category')
+        //     ->map(function ($category, $categoryName) use ($productDetails) {
+        //         $subCategoryList = $category->groupBy('sub_category')
+        //             ->map(function ($subCategory, $subCategoryName) use ($productDetails) {
+        //                 $productsList = $subCategory
+        //                     ->map(fn ($item) => "<strong>{$productDetails[$item['product_id']]}</strong><br> Qty: ". number_format($item['quantity']) ."<br>Price: ".number_format($item['quantity'] * $item['price']) ."<br>Lifting Price: " .number_format($item['quantity'] * $item['lifting_price']))
+        //                     ->implode('<br>');
+
+        //                 return "<em>{$subCategoryName}</em><br>{$productsList}";
+        //             })
+        //             ->implode('<br><br>');
+
+        //         return "<strong>{$categoryName}</strong><br>{$subCategoryList}";
+        //     })
+        //     ->implode('<br><br>');
+
+            // Group stock by category & sub-category
+    $groupedStock = collect($stock->products)
+    ->groupBy('category')
+    ->map(function ($category, $categoryName) use ($productDetails) {
+        $subCategoryList = $category->groupBy('sub_category')
+            ->map(function ($subCategory, $subCategoryName) use ($productDetails) {
+                $productsList = $subCategory
+                    ->map(function ($item) use ($productDetails) {
+                        $product = $productDetails[$item['product_id']] ?? null;
+
+                        if (!$product) {
+                            return "Unknown Product (ID: {$item['product_id']}) - Qty: {$item['quantity']}";
+                        }
+
+                        return "<strong>{$product->name}</strong><br>
+                                Qty: ".number_format($item['quantity'])."<br>
+                                Price: ".number_format($item['quantity'] * $product->price);
+                    })
+                    ->implode('<br>');
+
+                return "<em>{$subCategoryName}</em><br>{$productsList}";
+            })
+            ->implode('<br><br>');
+
+        return "<strong>{$categoryName}</strong><br>{$subCategoryList}";
+    })
+    ->implode('<br><br>');
+
+        return $groupedStock;
     }
 
     public static function table(Table $table): Table
