@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources;
 
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Tables;
+use App\Models\House;
 use App\Models\Stock;
 use App\Models\Product;
 use Filament\Forms\Get;
@@ -16,7 +18,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\StockResource\Pages;
-use Carbon\Carbon;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 
 class StockResource extends Resource
@@ -32,7 +33,7 @@ class StockResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('house_id')
-                    ->relationship('house', 'name')
+                    ->options(fn() => House::where('status','active')->pluck('code','id'))
                     ->required(),
                 Forms\Components\TextInput::make('itopup')
                     ->required()
@@ -104,6 +105,7 @@ class StockResource extends Resource
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([

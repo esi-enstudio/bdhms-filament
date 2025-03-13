@@ -14,9 +14,9 @@ class RsoSalesResource extends Resource
 {
     protected static ?string $model = RsoSales::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
+    protected static ?string $navigationIcon = 'heroicon-o-chart-pie';
 
-    protected static ?string $navigationGroup = 'Daily Sales & Stock (Rso)';
+    protected static ?string $navigationGroup = 'Daily Sales & Stock ( Rso )';
 
     public static function form(Form $form): Form
     {

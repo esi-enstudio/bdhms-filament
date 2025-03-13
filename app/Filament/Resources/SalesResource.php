@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Tables;
 use App\Models\Sales;
@@ -13,6 +14,7 @@ use Filament\Tables\Table;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\SalesResource\Pages;
@@ -24,7 +26,7 @@ class SalesResource extends Resource
 {
     protected static ?string $model = Sales::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
+    protected static ?string $navigationIcon = 'heroicon-o-chart-pie';
 
     protected static ?string $navigationGroup = 'Daily Sales & Stock';
 
@@ -89,19 +91,20 @@ class SalesResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('house.name')
+                TextColumn::make('house.name')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('itopup')
+                TextColumn::make('itopup')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
+                    ->dateTime()
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
+                    ->sortable(),
+                TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
