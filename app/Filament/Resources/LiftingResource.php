@@ -190,6 +190,7 @@ class LiftingResource extends Resource
                             ]),
 
                         Section::make('Stocks')
+                            ->visibleOn(['create'])
                             ->schema([
                                 Placeholder::make('stocks')
                                     ->label('')

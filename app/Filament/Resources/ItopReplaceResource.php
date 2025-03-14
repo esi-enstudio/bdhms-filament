@@ -7,6 +7,7 @@ use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use App\Models\ItopReplace;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
@@ -34,14 +35,17 @@ class ItopReplaceResource extends Resource
             ->schema([
                 Select::make('user_id')
                     ->relationship('user', 'name', fn ($query) => $query->with('roles')->select('id', 'name'))
-                    ->getOptionLabelFromRecordUsing(fn($record) => "{$record->name} ({$record->roles->first()?->name})")
+                    ->getOptionLabelFromRecordUsing(fn($record) => $record->name ."(". Str::title($record->roles->first()?->name).")")
                     ->searchable()
+                    ->preload()
                     ->required()
                     ->visible(Auth::user()->hasRole('super_admin')), // Only visible to super_admin
                 Select::make('retailer_id')
-                    ->relationship('retailer', 'itop_number', fn($query) => $query->select('id','code','itop_number'))
+                    ->label('Itop Number')
+                    ->relationship('retailer', 'itop_number', fn($query) => $query->select('id','code','itop_number')->where('enabled','Y'))
                     ->getOptionLabelFromRecordUsing(fn($record) => "{$record->code} - {$record->itop_number}")
                     ->searchable()
+                    ->preload()
                     ->required(),
                 TextInput::make('sim_serial')
                     ->required()

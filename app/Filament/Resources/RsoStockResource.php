@@ -45,7 +45,11 @@ class RsoStockResource extends Resource
                     ->options(fn(Get $get) => Rso::query()
                         ->where('status', 'active')
                         ->where('house_id', $get('house_id'))
-                        ->pluck('itop_number','id')
+                        ->select('id', 'itop_number', 'name') // Select the required fields
+                        ->get()
+                        ->mapWithKeys(function ($item) {
+                            return [$item->id => $item->itop_number . ' - ' . $item->name]; // Concatenate fields
+                        })
                     ),
                 TextInput::make('itopup')
                     ->numeric(),
