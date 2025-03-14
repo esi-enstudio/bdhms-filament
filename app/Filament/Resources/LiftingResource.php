@@ -117,6 +117,7 @@ class LiftingResource extends Resource
                             Select::make('product_id')
                                 ->label('Name')
                                 ->live()
+                                ->helperText(fn($get) => $get('lifting_price') !== null ? "Lifting Price: " . $get('lifting_price') : '')
                                 ->afterStateUpdated(function(Get $get, Set $set){
                                     $product = Product::findOrFail($get('product_id'));
 
@@ -150,7 +151,7 @@ class LiftingResource extends Resource
                                     $set('lifting_value', $qty * $get('lifting_price'));
                                     $set('value', $qty * $get('price'));
                                 }),
-                            TextInput::make('lifting_price')->readOnly()->default(0),
+                            Hidden::make('lifting_price'),
                             Hidden::make('price'),
                             TextInput::make('lifting_value')->readOnly()->default(0),
                             Hidden::make('value'),
@@ -165,7 +166,7 @@ class LiftingResource extends Resource
                         ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                             ->schema([
                                 Placeholder::make('product_totals')
-                                    ->label('Product Totals')
+                                    ->label('Product Totals ( Face Value )')
                                     ->content(function(Get $get){
 
                                         $products = collect($get('products'));
@@ -190,43 +191,6 @@ class LiftingResource extends Resource
 
                         Section::make('Stocks')
                             ->schema([
-                                // Placeholder::make('stocks')
-                                // ->label('')
-                                // ->content(function () {
-                                //     // Fetch the data from the stocks table
-                                //     $stocks = Stock::all();
-
-                                //     // Extract the products column and flatten the array
-                                //     $products = $stocks->pluck('products')->flatten(1);
-
-                                //     // Group the data by category and sub_category
-                                //     $groupedProducts = $products->groupBy(['category', 'sub_category']);
-
-                                //     // Start building the HTML content
-                                //     $html = '';
-
-                                //     // Loop through the grouped data
-                                //     foreach ($groupedProducts as $category => $subCategories) {
-                                //         $html .= "<strong>Category: {$category}</strong><br>";
-                                //         $html .= '<ul>';
-                                //         foreach ($subCategories as $subCategory => $items) {
-                                //             $html .= "<li><strong>Sub Category: {$subCategory}</strong></li>";
-                                //             $html .= '<ul>';
-                                //             foreach ($items as $item) {
-                                //                 // Fetch the product name using the relationship
-                                //                 $product = Product::firstWhere('id', $item['product_id']);
-                                //                 $productName = $product ? $product->name : 'Unknown Product';
-
-                                //                 $html .= "<li>Product Name: {$productName} <br> Quantity: ".number_format($item['quantity'])." <br> Lifting Value: {$item['lifting_value']} <br> Value: {$item['value']}<br><br></li>";
-                                //             }
-                                //             $html .= '</ul>';
-                                //         }
-                                //         $html .= '</ul>';
-                                //     }
-
-                                //     // Return the HTML content as an HtmlString
-                                //     return new HtmlString($html);
-                                // })
                                 Placeholder::make('stocks')
                                     ->label('')
                                     ->content(fn ($get) => new HtmlString($get('stocks') ?? 'Select a house to view stock.')),
@@ -242,6 +206,7 @@ class LiftingResource extends Resource
         }
 
         $stock = Stock::where('house_id', $houseId)->first();
+
         if (!$stock || empty($stock->products)) {
             return 'No stock available for this house.';
         }
@@ -255,52 +220,37 @@ class LiftingResource extends Resource
         ->keyBy('id'); // Index by product ID for easy lookup
 
         // Group stock by category & sub-category
-        // $groupedStock = collect($stock->products)
-        //     ->groupBy('category')
-        //     ->map(function ($category, $categoryName) use ($productDetails) {
-        //         $subCategoryList = $category->groupBy('sub_category')
-        //             ->map(function ($subCategory, $subCategoryName) use ($productDetails) {
-        //                 $productsList = $subCategory
-        //                     ->map(fn ($item) => "<strong>{$productDetails[$item['product_id']]}</strong><br> Qty: ". number_format($item['quantity']) ."<br>Price: ".number_format($item['quantity'] * $item['price']) ."<br>Lifting Price: " .number_format($item['quantity'] * $item['lifting_price']))
-        //                     ->implode('<br>');
+        $groupedStock = collect($stock->products)
+        ->groupBy('category')
+        ->map(function ($category, $categoryName) use ($productDetails) {
+            $subCategoryList = $category->groupBy('sub_category')
+                ->map(function ($subCategory, $subCategoryName) use ($productDetails) {
+                    $productsList = $subCategory
+                        ->map(function ($item) use ($productDetails) {
+                            $product = $productDetails[$item['product_id']] ?? null;
 
-        //                 return "<em>{$subCategoryName}</em><br>{$productsList}";
-        //             })
-        //             ->implode('<br><br>');
+                            if (!$product) {
+                                return "Unknown Product (ID: {$item['product_id']}) - Qty: {$item['quantity']}";
+                            }
 
-        //         return "<strong>{$categoryName}</strong><br>{$subCategoryList}";
-        //     })
-        //     ->implode('<br><br>');
+                            return "<strong>{$product->name}</strong><br>
+                                    Qty: ".number_format($item['quantity'])."<br>
+                                    Price: ".number_format($item['quantity'] * $product->price);
+                        })
+                        ->implode('<br>');
 
-            // Group stock by category & sub-category
-    $groupedStock = collect($stock->products)
-    ->groupBy('category')
-    ->map(function ($category, $categoryName) use ($productDetails) {
-        $subCategoryList = $category->groupBy('sub_category')
-            ->map(function ($subCategory, $subCategoryName) use ($productDetails) {
-                $productsList = $subCategory
-                    ->map(function ($item) use ($productDetails) {
-                        $product = $productDetails[$item['product_id']] ?? null;
+                    return "<em>{$subCategoryName}</em><br>{$productsList}";
+                })
+                ->implode('<br><br>');
 
-                        if (!$product) {
-                            return "Unknown Product (ID: {$item['product_id']}) - Qty: {$item['quantity']}";
-                        }
+                return "<strong>{$categoryName}</strong><br>{$subCategoryList}";
+        })
+        ->implode('<br><br>');
 
-                        return "<strong>{$product->name}</strong><br>
-                                Qty: ".number_format($item['quantity'])."<br>
-                                Price: ".number_format($item['quantity'] * $product->price);
-                    })
-                    ->implode('<br>');
+        // Add the itopup value at the top of the output
+        $itopupDisplay = "<strong><h2>Itop-up: " . number_format($stock->itopup) . "</h2></strong><br><br>";
 
-                return "<em>{$subCategoryName}</em><br>{$productsList}";
-            })
-            ->implode('<br><br>');
-
-        return "<strong>{$categoryName}</strong><br>{$subCategoryList}";
-    })
-    ->implode('<br><br>');
-
-        return $groupedStock;
+        return $itopupDisplay . $groupedStock;
     }
 
     public static function table(Table $table): Table

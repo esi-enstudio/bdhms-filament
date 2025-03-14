@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\SalesResource\Pages;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\SalesResource\RelationManagers;
+use App\Models\House;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 
 class SalesResource extends Resource
@@ -35,7 +36,8 @@ class SalesResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('house_id')
-                    ->relationship('house', 'code')
+                    ->label('House')
+                    ->options(fn() => House::where('status','active')->pluck('code','id'))
                     ->required(),
                 Forms\Components\TextInput::make('itopup')
                     ->maxLength(255),
@@ -76,8 +78,8 @@ class SalesResource extends Resource
                                         $qty = 0;
                                     }
 
-                                    $set('lifting_value', $qty * $get('lifting_price'));
-                                    $set('value', $qty * $get('price'));
+                                    $set('lifting_value', round($qty * $get('lifting_price')));
+                                    $set('value', round($qty * $get('price')));
                                 }),
                             Hidden::make('lifting_price'),
                             Hidden::make('price'),
