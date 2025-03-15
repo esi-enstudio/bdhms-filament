@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class RsoStock extends Model
 {
     protected $guarded = [];
-    protected $with = ['house'];
+    protected $with = ['house','rso'];
 
     protected $casts = [
         'products' => 'array',
@@ -18,5 +18,10 @@ class RsoStock extends Model
     public function house(): BelongsTo
     {
         return $this->belongsTo(House::class);
+    }
+
+    public function rso(): BelongsTo
+    {
+        return $this->belongsTo(Rso::class);
     }
 }

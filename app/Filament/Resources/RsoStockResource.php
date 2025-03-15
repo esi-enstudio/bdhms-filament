@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources;
 
+use Carbon\Carbon;
 use App\Models\Rso;
 use Filament\Tables;
+use App\Models\House;
 use App\Models\Product;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
@@ -16,7 +18,6 @@ use Filament\Forms\Components\Select;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
 use App\Filament\Resources\RsoStockResource\Pages;
-use App\Models\House;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 
 class RsoStockResource extends Resource
@@ -104,22 +105,23 @@ class RsoStockResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('house_id')
-                    ->numeric()
+                TextColumn::make('house.name')
+                    ->description(fn(RsoStock $rsoStock): string => $rsoStock->house->code)
                     ->sortable(),
-                TextColumn::make('rso_id')
-                    ->numeric()
+                TextColumn::make('rso.name')
+                    ->description(fn(RsoStock $rsoStock): string => $rsoStock->rso->itop_number)
                     ->sortable(),
                 TextColumn::make('itopup')
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('created_at')
                     ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
+                    ->sortable(),
                 TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
