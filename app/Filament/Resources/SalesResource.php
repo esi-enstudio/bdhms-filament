@@ -83,6 +83,25 @@ class SalesResource extends Resource
                                 }),
                             Hidden::make('lifting_price'),
                             Hidden::make('price'),
+                            TextInput::make('rate')
+                                ->live(onBlur: true)
+                                ->numeric()
+                                ->afterStateUpdated(function(Get $get, Set $set){
+                                    $qty = $get('quantity');
+                                    $rate = $get('rate');
+
+                                    if($qty == '')
+                                    {
+                                        $qty = 0;
+                                    }
+
+                                    if ($rate) {
+                                        $set('lifting_value', round($qty * $rate));
+                                    } else {
+                                        $set('lifting_value', round($qty * $get('lifting_price')));
+                                    }
+                                    $set('value', round($qty * $get('price')));
+                                }),
                             TextInput::make('lifting_value')->readOnly(),
                             TextInput::make('value')->readOnly(),
                         ]),

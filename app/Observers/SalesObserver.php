@@ -139,20 +139,55 @@ class SalesObserver
     /**
      * Deduct sold products from stock.
      */
+//    private function deductProducts(?array $stockProducts, ?array $salesProducts): ?array
+//    {
+//        $updated = collect($stockProducts)->map(function ($product) use ($salesProducts) {
+//            $match = collect($salesProducts)->firstWhere('product_id', $product['product_id']);
+//
+//            if ($match) {
+//                $product['quantity'] -= $match['quantity'];
+//                $product['lifting_value'] -= $match['lifting_value'];
+//                $product['value'] -= $match['value'];
+//
+//                // Ensure no negative values
+//                if ($product['quantity'] <= 0) $product['quantity'] = 0;
+//                if ($product['lifting_value'] <= 0) $product['lifting_value'] = 0;
+//                if ($product['value'] <= 0) $product['value'] = 0;
+//            }
+//
+//            // Remove unwanted fields
+//            unset($product['lifting_price'], $product['price']);
+//
+//            return $product;
+//        })->toArray();
+//
+//        // Remove empty/null product entries
+//        return array_values(array_filter($updated, fn($p) => !is_null($p['product_id']) && $p['product_id'] !== ""));
+//    }
+
     private function deductProducts(?array $stockProducts, ?array $salesProducts): ?array
     {
-        $updated = collect($stockProducts)->map(function ($product) use ($salesProducts) {
-            $match = collect($salesProducts)->firstWhere('product_id', $product['product_id']);
+        // Group sales products by product_id to handle multiple rates for the same product
+        $groupedSalesProducts = collect($salesProducts)->groupBy('product_id');
 
-            if ($match) {
-                $product['quantity'] -= $match['quantity'];
-                $product['lifting_value'] -= $match['lifting_value'];
-                $product['value'] -= $match['value'];
+        $updated = collect($stockProducts)->map(function ($product) use ($groupedSalesProducts) {
+            $productId = $product['product_id'];
 
-                // Ensure no negative values
-                if ($product['quantity'] <= 0) $product['quantity'] = 0;
-                if ($product['lifting_value'] <= 0) $product['lifting_value'] = 0;
-                if ($product['value'] <= 0) $product['value'] = 0;
+            // Check if there are sales entries for this product
+            if ($groupedSalesProducts->has($productId)) {
+                $salesForProduct = $groupedSalesProducts->get($productId);
+
+                // Deduct quantities and values for each sales entry of this product
+                foreach ($salesForProduct as $sale) {
+                    $product['quantity'] -= $sale['quantity'];
+                    $product['lifting_value'] -= $sale['lifting_value'];
+                    $product['value'] -= $sale['value'];
+
+                    // Ensure no negative values
+                    if ($product['quantity'] <= 0) $product['quantity'] = 0;
+                    if ($product['lifting_value'] <= 0) $product['lifting_value'] = 0;
+                    if ($product['value'] <= 0) $product['value'] = 0;
+                }
             }
 
             // Remove unwanted fields
@@ -165,20 +200,26 @@ class SalesObserver
         return array_values(array_filter($updated, fn($p) => !is_null($p['product_id']) && $p['product_id'] !== ""));
     }
 
-    private function reverseProducts(?array $stockProducts, ?array $oldSalesProducts): array
+    private function reverseProducts(?array $stockProducts, ?array $salesProducts): ?array
     {
-        if (!$oldSalesProducts) return $stockProducts ?? [];
+        $groupedSalesProducts = collect($salesProducts)->groupBy('product_id');
 
-        return collect($stockProducts)->map(function ($product) use ($oldSalesProducts) {
-            $match = collect($oldSalesProducts)->firstWhere('product_id', $product['product_id']);
+        $updated = collect($stockProducts)->map(function ($product) use ($groupedSalesProducts) {
+            $productId = $product['product_id'];
 
-            if ($match) {
-                $product['quantity'] += $match['quantity'];
-                $product['lifting_value'] += $match['lifting_value'];
-                $product['value'] += $match['value'];
+            if ($groupedSalesProducts->has($productId)) {
+                $salesForProduct = $groupedSalesProducts->get($productId);
+
+                foreach ($salesForProduct as $sale) {
+                    $product['quantity'] += $sale['quantity'];
+                    $product['lifting_value'] += $sale['lifting_value'];
+                    $product['value'] += $sale['value'];
+                }
             }
 
             return $product;
         })->toArray();
+
+        return array_values(array_filter($updated, fn($p) => !is_null($p['product_id']) && $p['product_id'] !== ""));
     }
 }
