@@ -16,9 +16,7 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
-use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\SalesResource\Pages;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\SalesResource\RelationManagers;
 use App\Models\House;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
@@ -54,6 +52,15 @@ class SalesResource extends Resource
                                 ->live()
                                 ->afterStateUpdated(function(Get $get, Set $set){
                                     $product = Product::findOrFail($get('product_id'));
+                                    $qty = $get('quantity');
+                                    $rate = $get('rate');
+                                    $liftingPrice = $get('lifting_price');
+                                    $price = $get('price');
+
+                                    if($qty == '')
+                                    {
+                                        $qty = 0;
+                                    }
 
                                     if($product){
                                         $set('lifting_price', $product->lifting_price);
@@ -62,6 +69,15 @@ class SalesResource extends Resource
                                         // Save category directly from product table
                                         $set('category', $product->category);
                                         $set('sub_category', $product->sub_category);
+
+                                        // Calculation values
+                                        if ($rate) {
+                                            $set('lifting_value', round($qty * $rate));
+                                        } else {
+                                            $set('lifting_value', round($qty * $liftingPrice));
+                                        }
+
+                                        $set('value', round($qty * $price));
                                     }
 
                                 })
@@ -72,14 +88,23 @@ class SalesResource extends Resource
                                 ->live(onBlur:true)
                                 ->afterStateUpdated(function(Get $get, Set $set){
                                     $qty = $get('quantity');
+                                    $rate = $get('rate');
+                                    $liftingPrice = $get('lifting_price');
+                                    $price = $get('price');
 
                                     if($qty == '')
                                     {
                                         $qty = 0;
                                     }
 
-                                    $set('lifting_value', round($qty * $get('lifting_price')));
-                                    $set('value', round($qty * $get('price')));
+                                    // Calculation values
+                                    if ($rate) {
+                                        $set('lifting_value', round($qty * $rate));
+                                    } else {
+                                        $set('lifting_value', round($qty * $liftingPrice));
+                                    }
+
+                                    $set('value', round($qty * $price));
                                 }),
                             Hidden::make('lifting_price'),
                             Hidden::make('price'),

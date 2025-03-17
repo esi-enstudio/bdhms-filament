@@ -16,28 +16,29 @@ class SalesObserver
         $today = Carbon::today()->toDateString();
         $houseId = $sales->house_id;
 
-        // Check if today's stock entry exists
+        // Get today's stock entry
         $stock = Stock::where('house_id', $houseId)
             ->whereDate('created_at', $today)
             ->first();
 
         if ($stock) {
-            // Deduct sold products from stock
-            $updatedProducts = $this->deductProducts($stock->products, $sales->products);
+            // Reduce sold products from stock
+            $updatedProducts = $this->reduceStockProducts($stock->products, $sales->products);
 
             $stock->update([
                 'products' => $updatedProducts,
                 'itopup' => max(0, $stock->itopup - $sales->itopup), // Ensure itopup doesn't go negative
             ]);
         } else {
-            // If no stock entry today, get the last stock entry
+            // Get the last stock entry
             $lastStock = Stock::where('house_id', $houseId)
                 ->latest('created_at')
                 ->first();
 
+            // Create a new stock entry with updated products
             Stock::create([
                 'house_id' => $houseId,
-                'products' => $this->deductProducts($lastStock->products ?? [], $sales->products ?? []),
+                'products' => $this->reduceStockProducts($lastStock->products ?? [], $sales->products),
                 'itopup' => max(0, ($lastStock->itopup ?? 0) - $sales->itopup),
             ]);
         }
@@ -51,8 +52,8 @@ class SalesObserver
         $today = Carbon::today()->toDateString();
         $houseId = $sales->house_id;
 
-        // Get the original sales data before update
-        $originalSales = $sales->getOriginal();
+        // Get the original sale data before the update
+        $originalProducts = $sales->getOriginal('products');
 
         // Find today's stock entry
         $stock = Stock::where('house_id', $houseId)
@@ -60,26 +61,27 @@ class SalesObserver
             ->first();
 
         if ($stock) {
-            // Reverse old sales data (add back to stock)
-            $reversedStock = $this->reverseProducts($stock->products, $originalSales['products']);
+            // Restore the original stock before applying the updated sale
+            $revertedProducts = $this->restoreStockProducts($stock->products, $originalProducts);
 
-            // Deduct new sales data
-            $updatedStock = $this->deductProducts($reversedStock, $sales->products);
+            // Apply the updated sale data reduction
+            $updatedProducts = $this->reduceStockProducts($revertedProducts, $sales->products);
 
+            // Update stock
             $stock->update([
-                'products' => $updatedStock,
-                'itopup' => max(0, $stock->itopup + $originalSales['itopup'] - $sales->itopup), // Adjust itopup
+                'products' => $updatedProducts,
+                'itopup' => ($stock->itopup + $sales->getOriginal('itopup')) - $sales->itopup,
             ]);
         } else {
-            // No stock for today? Get the last stock entry
+            // No stock for today, get the last stock entry
             $lastStock = Stock::where('house_id', $houseId)
                 ->latest('created_at')
                 ->first();
 
             Stock::create([
                 'house_id' => $houseId,
-                'products' => $this->deductProducts($lastStock->products ?? [], $sales->products),
-                'itopup' => ($lastStock->itopup ?? 0) - $originalSales['itopup'] + $sales->itopup,
+                'products' => $this->reduceStockProducts($lastStock->products ?? [], $sales->products),
+                'itopup' => ($lastStock->itopup ?? 0) - $sales->itopup,
             ]);
         }
     }
@@ -98,25 +100,25 @@ class SalesObserver
             ->first();
 
         if ($stock) {
-            // Reverse the deleted sale (add back quantities)
-            $updatedStock = $this->reverseProducts($stock->products, $sales->products);
+            // Restore stock by adding back deleted sales data
+            $restoredStock = $this->restoreStockProducts($stock->products, $sales->products);
 
+            // Update stock
             $stock->update([
-                'products' => $updatedStock,
-                'itopup' => max(0, $stock->itopup + $sales->itopup),
+                'products' => $restoredStock,
+                'itopup' => $stock->itopup + $sales->itopup,
             ]);
         } else {
-            // If no stock entry for today, update the last stock entry
+            // No stock for today, get the last stock entry
             $lastStock = Stock::where('house_id', $houseId)
                 ->latest('created_at')
                 ->first();
 
-            if ($lastStock) {
-                $lastStock->update([
-                    'products' => $this->reverseProducts($lastStock->products, $sales->products),
-                    'itopup' => max(0, $lastStock->itopup + $sales->itopup),
-                ]);
-            }
+            Stock::create([
+                'house_id' => $houseId,
+                'products' => $this->restoreStockProducts($lastStock->products ?? [], $sales->products),
+                'itopup' => ($lastStock->itopup ?? 0) + $sales->itopup,
+            ]);
         }
     }
 
@@ -137,89 +139,48 @@ class SalesObserver
     }
 
     /**
-     * Deduct sold products from stock.
+     * Reduce sold products from stock.
      */
-//    private function deductProducts(?array $stockProducts, ?array $salesProducts): ?array
-//    {
-//        $updated = collect($stockProducts)->map(function ($product) use ($salesProducts) {
-//            $match = collect($salesProducts)->firstWhere('product_id', $product['product_id']);
-//
-//            if ($match) {
-//                $product['quantity'] -= $match['quantity'];
-//                $product['lifting_value'] -= $match['lifting_value'];
-//                $product['value'] -= $match['value'];
-//
-//                // Ensure no negative values
-//                if ($product['quantity'] <= 0) $product['quantity'] = 0;
-//                if ($product['lifting_value'] <= 0) $product['lifting_value'] = 0;
-//                if ($product['value'] <= 0) $product['value'] = 0;
-//            }
-//
-//            // Remove unwanted fields
-//            unset($product['lifting_price'], $product['price']);
-//
-//            return $product;
-//        })->toArray();
-//
-//        // Remove empty/null product entries
-//        return array_values(array_filter($updated, fn($p) => !is_null($p['product_id']) && $p['product_id'] !== ""));
-//    }
-
-    private function deductProducts(?array $stockProducts, ?array $salesProducts): ?array
+    private function reduceStockProducts(?array $stockProducts, ?array $saleProducts): array
     {
-        // Group sales products by product_id to handle multiple rates for the same product
-        $groupedSalesProducts = collect($salesProducts)->groupBy('product_id');
+        if (!$stockProducts) return []; // If no stock, return empty array
 
-        $updated = collect($stockProducts)->map(function ($product) use ($groupedSalesProducts) {
-            $productId = $product['product_id'];
+        return collect($stockProducts)->map(function ($product) use ($saleProducts) {
+            $matchingSales = collect($saleProducts)->where('product_id', $product['product_id']);
 
-            // Check if there are sales entries for this product
-            if ($groupedSalesProducts->has($productId)) {
-                $salesForProduct = $groupedSalesProducts->get($productId);
+            if ($matchingSales->isNotEmpty()) {
+                // Sum the sold quantities and calculate total deduction for lifting_value & value
+                $totalSoldQuantity = $matchingSales->sum('quantity');
+                $totalLiftingValueDeduction = $matchingSales->sum('lifting_value');
+                $totalValueDeduction = $matchingSales->sum('value');
 
-                // Deduct quantities and values for each sales entry of this product
-                foreach ($salesForProduct as $sale) {
-                    $product['quantity'] -= $sale['quantity'];
-                    $product['lifting_value'] -= $sale['lifting_value'];
-                    $product['value'] -= $sale['value'];
+                // Reduce values
+                $product['quantity'] -= $totalSoldQuantity;
+                $product['lifting_value'] -= $totalLiftingValueDeduction;
+                $product['value'] -= $totalValueDeduction;
 
-                    // Ensure no negative values
-                    if ($product['quantity'] <= 0) $product['quantity'] = 0;
-                    if ($product['lifting_value'] <= 0) $product['lifting_value'] = 0;
-                    if ($product['value'] <= 0) $product['value'] = 0;
-                }
+                // Ensure values do not go negative
+                if ($product['quantity'] <= 0) $product['quantity'] = 0;
+                if ($product['lifting_value'] <= 0) $product['lifting_value'] = 0;
+                if ($product['value'] <= 0) $product['value'] = 0;
             }
-
-            // Remove unwanted fields
-            unset($product['lifting_price'], $product['price']);
 
             return $product;
         })->toArray();
-
-        // Remove empty/null product entries
-        return array_values(array_filter($updated, fn($p) => !is_null($p['product_id']) && $p['product_id'] !== ""));
     }
 
-    private function reverseProducts(?array $stockProducts, ?array $salesProducts): ?array
+    private function restoreStockProducts(array $stockProducts, array $originalSales): array
     {
-        $groupedSalesProducts = collect($salesProducts)->groupBy('product_id');
+        return collect($stockProducts)->map(function ($product) use ($originalSales) {
+            $match = collect($originalSales)->firstWhere('product_id', $product['product_id']);
 
-        $updated = collect($stockProducts)->map(function ($product) use ($groupedSalesProducts) {
-            $productId = $product['product_id'];
-
-            if ($groupedSalesProducts->has($productId)) {
-                $salesForProduct = $groupedSalesProducts->get($productId);
-
-                foreach ($salesForProduct as $sale) {
-                    $product['quantity'] += $sale['quantity'];
-                    $product['lifting_value'] += $sale['lifting_value'];
-                    $product['value'] += $sale['value'];
-                }
+            if ($match) {
+                $product['quantity'] += $match['quantity'];
+                $product['lifting_value'] += $match['lifting_value'];
+                $product['value'] += $match['value'];
             }
 
             return $product;
         })->toArray();
-
-        return array_values(array_filter($updated, fn($p) => !is_null($p['product_id']) && $p['product_id'] !== ""));
     }
 }

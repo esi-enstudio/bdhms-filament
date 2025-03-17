@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use Carbon\Carbon;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
 use Filament\Tables;
 use App\Models\House;
 use App\Models\Stock;
@@ -40,17 +41,20 @@ class StockResource extends Resource
                 TextInput::make('itopup')
                     ->required()
                     ->maxLength(255),
+                DatePicker::make('created_at')
+                    ->label('Stock Date')
+                    ->visibleOn(['view'])
+                    ->date(),
 
                 TableRepeater::make('products')
-                        ->reorderable()
                         ->cloneable()
-                        ->collapsible()
                         ->schema([
                             Hidden::make('category'),
                             Hidden::make('sub_category'),
                             Select::make('product_id')
                                 ->label('Name')
                                 ->live()
+//                                ->helperText(fn(Get $get) => $get('product_id'))
                                 ->afterStateUpdated(function(Get $get, Set $set){
                                     $product = Product::findOrFail($get('product_id'));
 
@@ -61,6 +65,10 @@ class StockResource extends Resource
                                         // Save category directly from product table
                                         $set('category', $product->category);
                                         $set('sub_category', $product->sub_category);
+
+                                        // Calculate values
+                                        $set('lifting_value', round(($get('quantity') ?? 0) * $get('lifting_price')));
+                                        $set('value', round($get('quantity') ?? 0) * $get('price'));
                                     }
 
                                 })
@@ -77,11 +85,51 @@ class StockResource extends Resource
                                         $qty = 0;
                                     }
 
-                                    $set('lifting_value', $qty * $get('lifting_price'));
-                                    $set('value', $qty * $get('price'));
+                                    $set('lifting_value', round($qty * $get('lifting_price')));
+                                    $set('value', round($qty * $get('price')));
                                 }),
-                            Hidden::make('lifting_price'),
-                            Hidden::make('price'),
+
+
+                            Hidden::make('lifting_price')
+                                ->default(function (Get $get) {
+                                    $productId = $get('product_id');
+                                    if ($productId) {
+                                        $product = Product::find($productId);
+                                        return $product ? $product->lifting_price : null;
+                                    }
+                                    return null;
+                                })
+                                ->afterStateHydrated(function ($component, Get $get) {
+                                    // Set the default value when the field is hydrated
+                                    $productId = $get('product_id');
+                                    if ($productId) {
+                                        $product = Product::find($productId);
+                                        if ($product) {
+                                            $component->state($product->lifting_price);
+                                        }
+                                    }
+                                }),
+
+                            Hidden::make('price')
+                                ->default(function (Get $get) {
+                                    $productId = $get('product_id');
+                                    if ($productId) {
+                                        $product = Product::find($productId);
+                                        return $product ? $product->price : null;
+                                    }
+                                    return null;
+                                })
+                                ->afterStateHydrated(function ($component, Get $get) {
+                                    // Set the default value when the field is hydrated
+                                    $productId = $get('product_id');
+                                    if ($productId) {
+                                        $product = Product::find($productId);
+                                        if ($product) {
+                                            $component->state($product->price);
+                                        }
+                                    }
+                                }),
+
                             TextInput::make('lifting_value')->readOnly(),
                             TextInput::make('value')->readOnly(),
                     ]),
