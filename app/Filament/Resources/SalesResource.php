@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Tables;
+use App\Models\House;
 use App\Models\Sales;
 use App\Models\Product;
 use Filament\Forms\Get;
@@ -16,9 +17,9 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
+use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\SalesResource\Pages;
 use App\Filament\Resources\SalesResource\RelationManagers;
-use App\Models\House;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 
 class SalesResource extends Resource
@@ -54,8 +55,6 @@ class SalesResource extends Resource
                                     $product = Product::findOrFail($get('product_id'));
                                     $qty = $get('quantity');
                                     $rate = $get('rate');
-                                    $liftingPrice = $get('lifting_price');
-                                    $price = $get('price');
 
                                     if($qty == '')
                                     {
@@ -63,21 +62,14 @@ class SalesResource extends Resource
                                     }
 
                                     if($product){
-                                        $set('lifting_price', $product->lifting_price);
-                                        $set('price', $product->price);
+                                        $set('rate', $product->lifting_price);
 
                                         // Save category directly from product table
                                         $set('category', $product->category);
                                         $set('sub_category', $product->sub_category);
 
                                         // Calculation values
-                                        if ($rate) {
-                                            $set('lifting_value', round($qty * $rate));
-                                        } else {
-                                            $set('lifting_value', round($qty * $liftingPrice));
-                                        }
-
-                                        $set('value', round($qty * $price));
+                                        $set('sales_value', round($qty * $rate));
                                     }
 
                                 })
@@ -89,8 +81,6 @@ class SalesResource extends Resource
                                 ->afterStateUpdated(function(Get $get, Set $set){
                                     $qty = $get('quantity');
                                     $rate = $get('rate');
-                                    $liftingPrice = $get('lifting_price');
-                                    $price = $get('price');
 
                                     if($qty == '')
                                     {
@@ -98,16 +88,8 @@ class SalesResource extends Resource
                                     }
 
                                     // Calculation values
-                                    if ($rate) {
-                                        $set('lifting_value', round($qty * $rate));
-                                    } else {
-                                        $set('lifting_value', round($qty * $liftingPrice));
-                                    }
-
-                                    $set('value', round($qty * $price));
+                                    $set('sales_value', round($qty * $rate));
                                 }),
-                            Hidden::make('lifting_price'),
-                            Hidden::make('price'),
                             TextInput::make('rate')
                                 ->live(onBlur: true)
                                 ->numeric()
@@ -120,15 +102,10 @@ class SalesResource extends Resource
                                         $qty = 0;
                                     }
 
-                                    if ($rate) {
-                                        $set('lifting_value', round($qty * $rate));
-                                    } else {
-                                        $set('lifting_value', round($qty * $get('lifting_price')));
-                                    }
-                                    $set('value', round($qty * $get('price')));
+                                    // Calculation values
+                                    $set('sales_value', round($qty * $rate));
                                 }),
-                            TextInput::make('lifting_value')->readOnly(),
-                            TextInput::make('value')->readOnly(),
+                            TextInput::make('sales_value')->readOnly(),
                         ]),
             ]);
     }
@@ -182,5 +159,10 @@ class SalesResource extends Resource
             'view' => Pages\ViewSales::route('/{record}'),
             'edit' => Pages\EditSales::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->latest('created_at');
     }
 }
