@@ -146,12 +146,13 @@ class SalesObserver
         if (!$stockProducts) return []; // If no stock, return empty array
 
         return collect($stockProducts)->map(function ($product) use ($saleProducts) {
+//            dd($product);
             $matchingSales = collect($saleProducts)->where('product_id', $product['product_id']);
 
             if ($matchingSales->isNotEmpty()) {
                 // Ensure missing keys default to 0 to avoid errors
                 $product['quantity'] = $product['quantity'] ?? 0;
-                $product['sales_value'] = $product['sales_value'] ?? 0;
+                $product['lifting_value'] = $product['lifting_value'] ?? 0;
                 $product['value'] = $product['value'] ?? 0;
 
                 // Sum the sold quantities and calculate total deduction for sales_value & value
@@ -161,12 +162,12 @@ class SalesObserver
 
                 // Reduce values
                 $product['quantity'] -= $totalSoldQuantity;
-                $product['sales_value'] -= $totalLiftingValueDeduction;
+                $product['lifting_value'] -= $totalLiftingValueDeduction;
                 $product['value'] -= $totalValueDeduction;
 
                 // Ensure values do not go negative
                 $product['quantity'] = max(0, $product['quantity']);
-                $product['sales_value'] = max(0, $product['sales_value']);
+                $product['lifting_value'] = max(0, $product['lifting_value']);
                 $product['value'] = max(0, $product['value']);
             }
 
@@ -184,7 +185,7 @@ class SalesObserver
             if ($matchingSales->isNotEmpty()) {
                 // Ensure missing keys default to 0 to avoid errors
                 $product['quantity'] = $product['quantity'] ?? 0;
-                $product['sales_value'] = $product['sales_value'] ?? 0;
+                $product['lifting_value'] = $product['lifting_value'] ?? 0;
                 $product['value'] = $product['value'] ?? 0;
 
                 // Sum the deleted sales quantities and values
@@ -194,7 +195,7 @@ class SalesObserver
 
                 // Restore stock values
                 $product['quantity'] += $totalRestoredQuantity;
-                $product['sales_value'] += $totalSalesValueRestored;
+                $product['lifting_value'] += $totalSalesValueRestored;
                 $product['value'] += $totalValueRestored;
             }
 

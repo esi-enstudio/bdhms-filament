@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
+use Filament\Notifications\Notification;
 use Filament\Tables;
 use App\Models\House;
 use App\Models\Stock;
@@ -54,29 +55,43 @@ class StockResource extends Resource
                             Select::make('product_id')
                                 ->label('Name')
                                 ->live()
-//                                ->helperText(fn(Get $get) => $get('product_id'))
+                                ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? "Lifting Price: " . $get('lifting_price') : '')
                                 ->afterStateUpdated(function(Get $get, Set $set){
-                                    $product = Product::findOrFail($get('product_id'));
+                                    if(empty($get('product_id'))){
+                                        // Reset fields
+                                        $set('lifting_value', 0);
+                                        $set('value', 0);
 
-                                    if($product){
-                                        $set('lifting_price', $product->lifting_price);
-                                        $set('price', $product->price);
+                                        // Send notification
+                                        Notification::make()
+                                            ->title('Warning')
+                                            ->body('Please select a product.')
+                                            ->warning()
+                                            ->persistent()
+                                            ->send();
+                                    }else{
+                                        $product = Product::findOrFail($get('product_id'));
 
-                                        // Save category directly from product table
-                                        $set('category', $product->category);
-                                        $set('sub_category', $product->sub_category);
+                                        if($product){
+                                            $set('lifting_price', $product->lifting_price);
+                                            $set('price', $product->price);
 
-                                        // Calculate values
-                                        $set('lifting_value', round(($get('quantity') ?? 0) * $get('lifting_price')));
-                                        $set('value', round($get('quantity') ?? 0) * $get('price'));
+                                            // Save category directly from product table
+                                            $set('category', $product->category);
+                                            $set('sub_category', $product->sub_category);
+
+                                            // Calculate values
+                                            $set('lifting_value', round(($get('quantity') ?? 0) * $get('lifting_price')));
+                                            $set('value', round($get('quantity') ?? 0) * $get('price'));
+                                        }
                                     }
-
                                 })
                                 ->options(fn() => Product::where('status','active')->pluck('code','id')),
 
                             TextInput::make('quantity')
                                 ->numeric()
                                 ->live(onBlur:true)
+                                ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? $get('lifting_price').'x'.$get('quantity').' = '. number_format(round($get('lifting_price') * $get('quantity'))).' | '.$get('price').'x'.$get('quantity').' = '. number_format(round($get('price') * $get('quantity'))): '')
                                 ->afterStateUpdated(function(Get $get, Set $set){
                                     $qty = $get('quantity');
 
@@ -91,47 +106,42 @@ class StockResource extends Resource
 
 
                             Hidden::make('lifting_price')
-                                ->default(function (Get $get) {
-                                    $productId = $get('product_id');
-                                    if ($productId) {
-                                        $product = Product::find($productId);
-                                        return $product ? $product->lifting_price : null;
+                                ->afterStateHydrated(function ($component, Get $get, ?string $operation) {
+                                    if (!in_array($operation, ['edit', 'view'])) {
+                                        return;
                                     }
-                                    return null;
-                                })
-                                ->afterStateHydrated(function ($component, Get $get) {
-                                    // Set the default value when the field is hydrated
-                                    $productId = $get('product_id');
-                                    if ($productId) {
-                                        $product = Product::find($productId);
-                                        if ($product) {
-                                            $component->state($product->lifting_price);
-                                        }
-                                    }
+
+                                    $component->getState();
                                 }),
 
                             Hidden::make('price')
-                                ->default(function (Get $get) {
-                                    $productId = $get('product_id');
-                                    if ($productId) {
-                                        $product = Product::find($productId);
-                                        return $product ? $product->price : null;
+                                ->afterStateHydrated(function ($component, Get $get, ?string $operation) {
+                                    if (!in_array($operation, ['edit', 'view'])) {
+                                        return;
                                     }
-                                    return null;
-                                })
-                                ->afterStateHydrated(function ($component, Get $get) {
-                                    // Set the default value when the field is hydrated
-                                    $productId = $get('product_id');
-                                    if ($productId) {
-                                        $product = Product::find($productId);
-                                        if ($product) {
-                                            $component->state($product->price);
-                                        }
-                                    }
+
+                                    $component->getState();
                                 }),
 
-                            TextInput::make('lifting_value')->readOnly(),
-                            TextInput::make('value')->readOnly(),
+                            Hidden::make('lifting_value')
+                                ->afterStateHydrated(function ($component, Get $get, ?string $operation) {
+
+                                    if (!in_array($operation, ['edit', 'view'])) {
+                                        return;
+                                    }
+
+                                    $component->state(round($get('lifting_price') * $get('quantity')));
+                                }),
+
+                            Hidden::make('value')
+                                ->afterStateHydrated(function ($component, Get $get, ?string $operation) {
+
+                                    if (!in_array($operation, ['edit', 'view'])) {
+                                        return;
+                                    }
+
+                                    $component->state(round($get('price') * $get('quantity')));
+                                }),
                     ]),
             ]);
     }

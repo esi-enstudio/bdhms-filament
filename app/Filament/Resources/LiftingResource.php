@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use Filament\Notifications\Notification;
 use Filament\Tables;
 use App\Models\House;
 use App\Models\Stock;
@@ -117,19 +118,36 @@ class LiftingResource extends Resource
                             Select::make('product_id')
                                 ->label('Name')
                                 ->live()
-                                ->helperText(fn($get) => $get('lifting_price') !== null ? "Lifting Price: " . $get('lifting_price') : '')
+                                ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? "Lifting Price: " . $get('lifting_price') : '')
                                 ->afterStateUpdated(function(Get $get, Set $set){
-                                    $product = Product::findOrFail($get('product_id'));
+                                    if(empty($get('product_id'))){
+                                        // Reset field
+                                        $set('lifting_value', 0);
+                                        $set('lifting_price', 0);
+                                        $set('price', 0);
 
-                                    if($product){
-                                        $set('lifting_price', $product->lifting_price);
-                                        $set('price', $product->price);
+                                        // Send notification
+                                        Notification::make()
+                                            ->title('Warning')
+                                            ->body('Please select a product.')
+                                            ->warning()
+                                            ->persistent()
+                                            ->send();
+                                    }else{
+                                        $product = Product::find($get('product_id'));
 
-                                        // Save category directly from product table
-                                        $set('category', $product->category);
-                                        $set('sub_category', $product->sub_category);
+                                        if($product){
+                                            $set('lifting_price', $product->lifting_price);
+                                            $set('price', $product->price);
+
+                                            // Save category directly from product table
+                                            $set('category', $product->category);
+                                            $set('sub_category', $product->sub_category);
+
+                                            // Calculate values
+                                            $set('lifting_value', round(($get('quantity') ?? 0) * $get('lifting_price')));
+                                        }
                                     }
-
                                 })
                                 ->options(fn() => Product::where('status','active')->pluck('code','id')),
                             Select::make('mode')
@@ -153,7 +171,7 @@ class LiftingResource extends Resource
                                 }),
                             Hidden::make('lifting_price'),
                             Hidden::make('price'),
-                            TextInput::make('lifting_value')->readOnly()->default(0),
+                            Hidden::make('lifting_value'),
                             Hidden::make('value'),
                     ]),
                 ]),

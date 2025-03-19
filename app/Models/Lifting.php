@@ -15,6 +15,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property mixed $house_id
  * @property mixed $products
  * @property mixed $itopup
+ * @property mixed $product_id
+ * @property mixed $category
+ * @property mixed $sub_category
+ * @property mixed $lifting_price
+ * @property mixed $quantity
+ * @property mixed $price
  */
 class Lifting extends Model
 {

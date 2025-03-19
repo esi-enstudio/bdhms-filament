@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use Carbon\Carbon;
 use Filament\Forms;
+use Filament\Notifications\Notification;
 use Filament\Tables;
 use App\Models\House;
 use App\Models\Sales;
@@ -52,26 +53,38 @@ class SalesResource extends Resource
                                 ->label('Name')
                                 ->live()
                                 ->afterStateUpdated(function(Get $get, Set $set){
-                                    $product = Product::findOrFail($get('product_id'));
-                                    $qty = $get('quantity');
-                                    $rate = $get('rate');
+                                    if(empty($get('product_id'))){
+                                        // Reset fields
+                                        $set('rate', 0);
+                                        $set('sales_value', 0);
 
-                                    if($qty == '')
-                                    {
-                                        $qty = 0;
+                                        // Send notification
+                                        Notification::make()
+                                            ->title('Warning')
+                                            ->body('Please select a product.')
+                                            ->warning()
+                                            ->persistent()
+                                            ->send();
+                                    }else{
+                                        $product = Product::findOrFail($get('product_id'));
+                                        $qty = $get('quantity');
+
+                                        if($qty == '')
+                                        {
+                                            $qty = 0;
+                                        }
+
+                                        if($product){
+                                            $set('rate', $product->lifting_price);
+
+                                            // Save category directly from product table
+                                            $set('category', $product->category);
+                                            $set('sub_category', $product->sub_category);
+
+                                            // Calculation values
+                                            $set('sales_value', round($qty * $get('rate')));
+                                        }
                                     }
-
-                                    if($product){
-                                        $set('rate', $product->lifting_price);
-
-                                        // Save category directly from product table
-                                        $set('category', $product->category);
-                                        $set('sub_category', $product->sub_category);
-
-                                        // Calculation values
-                                        $set('sales_value', round($qty * $rate));
-                                    }
-
                                 })
                                 ->options(fn() => Product::where('status','active')->pluck('code','id')),
 

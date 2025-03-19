@@ -39,13 +39,13 @@ class ProductResource extends Resource
                 Forms\Components\Select::make('sub_category')
                     ->required()
                     ->options([
-                        'Voice' => 'Voice',
-                        'Data' => 'Data',
-                        'Desh' => 'Desh',
-                        'Duplicate' => 'Duplicate',
-                        'Swap' => 'Swap',
-                        'Eswap' => 'Eswap',
-                        'Wifi' => 'WIFI',
+                        'VOICE' => 'Voice',
+                        'DATA' => 'Data',
+                        'DESH' => 'Desh',
+                        'DUPLICATE' => 'Duplicate',
+                        'SWAP' => 'Swap',
+                        'ESWAP' => 'Eswap',
+                        'WIFI' => 'WIFI',
                     ]),
                 Forms\Components\TextInput::make('price')
                     ->maxLength(255),
