@@ -48,23 +48,23 @@ class LiftingResource extends Resource
                             ->columns(2)
                             ->schema([
                                 Select::make('house_id')
-                                ->label('House')
-                                ->live()
-                                ->required()
-                                ->options(fn() => House::where('status','active')->pluck('code','id'))
-                                ->afterStateUpdated(fn ($state, callable $set) =>
-                                    $set('stocks', self::getStockPreview($state))
-                                ),
+                                    ->label('House')
+                                    ->live()
+                                    ->required()
+                                    ->options(fn() => House::where('status','active')->pluck('code','id'))
+                                    ->afterStateUpdated(fn ($state, callable $set) =>
+                                        $set('stocks', self::getStockPreview($state))
+                                    ),
 
                                 Select::make('status')
-                                ->required()
-                                ->live()
-                                ->hidden(fn(Get $get) => $get('house_id') == "")
-                                ->default('no lifting')
-                                ->options([
-                                    'has lifting' => 'Has Lifting',
-                                    'no lifting' => 'No Lifting',
-                                ]),
+                                    ->required()
+                                    ->live()
+                                    ->hidden(fn(Get $get) => $get('house_id') == "")
+                                    ->default('no lifting')
+                                    ->options([
+                                        'has lifting' => 'Has Lifting',
+                                        'no lifting' => 'No Lifting',
+                                    ]),
                             ]),
                         Section::make()
                         ->hidden(fn(Get $get) => $get('status') == 'no lifting')

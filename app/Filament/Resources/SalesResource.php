@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Models\Stock;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -35,11 +36,13 @@ class SalesResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('house_id')
+                Select::make('house_id')
                     ->label('House')
+                    ->live()
                     ->options(fn() => House::where('status','active')->pluck('code','id'))
                     ->required(),
-                Forms\Components\TextInput::make('itopup')
+
+                TextInput::make('itopup')
                     ->maxLength(255),
 
                     TableRepeater::make('products')
@@ -103,6 +106,29 @@ class SalesResource extends Resource
                                     // Calculation values
                                     $set('sales_value', round($qty * $rate));
                                 }),
+
+                            TextInput::make('lifting_price')
+                                ->helperText(function (Get $get){
+                                    $today = Carbon::today()->toDateString();
+                                    $houseId = $get('house');
+                                    dump($houseId);
+                                    dump($get('product_id'));
+                                    // আজকের স্টক খোঁজা
+                                    $stock = Stock::where('house_id', $houseId)
+                                        ->whereDate('created_at', $today)
+                                        ->first();
+//
+//                                    if (!$stock){
+//                                        // যদি আজকের স্টক না থাকে, সর্বশেষ স্টক খুঁজে বের করো
+//                                        $lastStock = Stock::where('house_id', $houseId)
+//                                            ->latest('created_at')
+//                                            ->first();
+//                                        dump($lastStock);
+//                                    }else{
+//                                        dump($get('product_id'));
+//                                    }
+                                }),
+
                             TextInput::make('rate')
                                 ->live(onBlur: true)
                                 ->numeric()
