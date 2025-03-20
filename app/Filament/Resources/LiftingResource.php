@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\Placeholder;
 use App\Filament\Resources\LiftingResource\Pages;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
+use function PHPUnit\Framework\isEmpty;
 
 class LiftingResource extends Resource
 {
@@ -87,7 +88,10 @@ class LiftingResource extends Resource
                                 ->live(onBlur:true)
                                 ->numeric()
                                 ->afterStateUpdated(function(Get $get, Set $set){
-                                    $set('itopup', round($get('deposit')/.9625));
+                                    // deposit খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
+                                    $deposit = !empty($get('deposit')) ? intval($get('deposit')) : 0;
+
+                                    $set('itopup', round($deposit / .9625));
                                 }),
 
                             TextInput::make('itopup')
@@ -104,17 +108,33 @@ class LiftingResource extends Resource
                         ->cloneable()
                         ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                         ->afterStateUpdated(function(Get $get, Set $set){
-                            $productsGrandTotal = collect($get('products'))->pluck('lifting_value')->sum();
-                            $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
+                            // deposit খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
+                            $deposit = !empty($get('deposit')) ? intval($get('deposit')) : 0;
+
+                            $productsGrandTotal = collect($get('products'))->map(function ($items){
+                                // quantity খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
+                                $quantity = !empty($items['quantity']) ? intval($items['quantity']) : 0;
+
+                                // lifting_price খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
+                                $liftingPrice = !empty($items['lifting_price']) ? floatval($items['lifting_price']) : 0;
+
+                                // গুণ করুন এবং রিটার্ন করুন
+                                return $quantity * $liftingPrice;
+                            })->sum();
+
+                            $set('itopup', round(($deposit - $productsGrandTotal) / .9625));
                         })
                         ->addAction(function(Get $get, Set $set){
-                            $productsGrandTotal = collect($get('products'))->pluck('lifting_value')->sum();
-                            $set('itopup', round(($get('deposit')-$productsGrandTotal)/.9625));
+                            // deposit খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
+                            $deposit = !empty($get('deposit')) ? intval($get('deposit')) : 0;
+
+                            $productsGrandTotal = collect($get('products'))->map(function ($items){
+                                return $items['quantity'] * $items['lifting_price'];
+                            })->sum();
+
+                            $set('itopup', round(($deposit - $productsGrandTotal) / .9625));
                         })
                         ->schema([
-                            Hidden::make('category'),
-                            Hidden::make('sub_category'),
-
                             Select::make('product_id')
                                 ->label('Name')
                                 ->live()
@@ -143,36 +163,31 @@ class LiftingResource extends Resource
                                             // Save category directly from product table
                                             $set('category', $product->category);
                                             $set('sub_category', $product->sub_category);
-
-                                            // Calculate values
-                                            $set('lifting_value', round(($get('quantity') ?? 0) * $get('lifting_price')));
                                         }
                                     }
                                 })
                                 ->options(fn() => Product::where('status','active')->pluck('code','id')),
+
+                            Hidden::make('category'),
+
+                            Hidden::make('sub_category'),
+
+                            TextInput::make('quantity')
+                                ->numeric()
+                                ->live(onBlur:true)
+                                ->required(fn($get) => $get('product_id') !== null)
+                                ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? $get('lifting_price').'x'.$get('quantity').' = '. number_format(round($get('lifting_price') * $get('quantity'))).' | '.$get('price').'x'.$get('quantity').' = '. number_format(round($get('price') * $get('quantity'))): ''),
+
+                            Hidden::make('lifting_price'),
+
+                            Hidden::make('price'),
+
                             Select::make('mode')
+                                ->required(fn($get) => $get('product_id') !== null)
                                 ->options([
                                     'cash' => 'Cash',
                                     'credit' => 'Credit',
                                 ]),
-                            TextInput::make('quantity')
-                                ->numeric()
-                                ->live(onBlur:true)
-                                ->afterStateUpdated(function(Get $get, Set $set){
-                                    $qty = $get('quantity');
-
-                                    if($qty == '')
-                                    {
-                                        $qty = 0;
-                                    }
-
-                                    $set('lifting_value', $qty * $get('lifting_price'));
-                                    $set('value', $qty * $get('price'));
-                                }),
-                            Hidden::make('lifting_price'),
-                            Hidden::make('price'),
-                            Hidden::make('lifting_value'),
-                            Hidden::make('value'),
                     ]),
                 ]),
 
@@ -180,26 +195,106 @@ class LiftingResource extends Resource
                 Group::make()
                     ->columnSpan(1)
                     ->schema([
-                        Section::make('Overview')
-                        ->hidden(fn(Get $get) => $get('status') == 'no lifting')
+                        Section::make('Product\'s Amount')
+                            ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                             ->schema([
                                 Placeholder::make('product_totals')
-                                    ->label('Product Totals ( Face Value )')
-                                    ->content(function(Get $get){
-
+                                    ->label('')
+                                    ->content(function (Get $get) {
                                         $products = collect($get('products'));
 
+                                        // ক্যাটাগরির ভিত্তিতে গ্রুপ করুন
                                         $groupedTotals = $products->groupBy('category')->map(function ($items) {
-                                            return $items->sum('value');
+                                            return [
+                                                'lifting_total' => $items->sum(fn($product) => $product['quantity'] * $product['lifting_price']),
+                                                'price_total' => $items->sum(fn($product) => $product['quantity'] * $product['price']),
+                                            ];
                                         });
 
+                                        // যদি কোনো ডেটা না থাকে
                                         if ($groupedTotals->isEmpty()) {
-                                            return 'N/A';
+                                            return 'No product selected.';
                                         }
 
+                                        // HTML কন্টেন্ট তৈরি করুন
                                         $html = '<ul>';
-                                        foreach ($groupedTotals as $subcategory => $total) {
-                                            $html .= "<li>{$subcategory} " . number_format($total) . "</li>";
+                                        foreach ($groupedTotals as $category => $totals) {
+                                            $liftingTotal = number_format($totals['lifting_total']);
+                                            $priceTotal = number_format($totals['price_total']);
+
+                                            if ($liftingTotal < 1){ $html .= ''; break; }
+
+                                            $html .= "<li>{$category} Amount: {$liftingTotal} । {$priceTotal}</li>";
+                                        }
+                                        $html .= '</ul>';
+
+                                        return new HtmlString($html);
+                                    }),
+
+//                                Placeholder::make('product_totals')
+//                                    ->label('Product Amount')
+//                                    ->content(function(Get $get){
+//
+//                                        $products = collect($get('products'));
+//
+//                                        $groupedTotals = $products->groupBy('category')->map(function ($items) {
+//                                            return $items->sum(fn($product) => $product['quantity'] * $product['lifting_price']);
+//                                        });
+//
+//                                        if ($groupedTotals->isEmpty()) {
+//                                            return 'N/A';
+//                                        }
+//
+//                                        $html = '<ul>';
+//                                        foreach ($groupedTotals as $subcategory => $total) {
+//                                            $html .= "<li> Total {$subcategory} Amount: " . number_format($total) . "</li>";
+//                                        }
+//                                        $html .= '</ul>';
+//
+//                                        return new HtmlString($html);
+//                                    }),
+                            ]),
+
+                        Section::make('Predict Quantity')
+                            ->hidden(fn(Get $get) => $get('status') == 'no lifting')
+                            ->schema([
+                                Placeholder::make('product_totals')
+                                    ->label('')
+                                    ->content(function (Get $get) {
+                                        $products = collect($get('products'));
+
+                                        // deposit খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
+                                        $depositAmount = !empty($get('deposit')) ? intval($get('deposit')) : 0;
+
+                                        // ক্যাটাগরির ভিত্তিতে গ্রুপ করুন
+                                        $calculateQty = $products->groupBy('category')->map(function ($items) use ($depositAmount) {
+                                            return $items->sum(function ($product) use ($depositAmount) {
+                                                // lifting_price ফিল্ডের মান চেক করুন
+                                                $liftingPrice = $product['lifting_price'] ?? 0;
+
+                                                // যদি lifting_price শূন্য হয়, তাহলে 0 রিটার্ন করুন
+                                                if ($liftingPrice == 0) {
+                                                    return 0;
+                                                }
+
+                                                // ভাগ করুন এবং রিটার্ন করুন
+                                                return $depositAmount / $liftingPrice;
+                                            });
+                                        });
+
+                                        // যদি কোনো ডেটা না থাকে
+                                        if ($calculateQty->isEmpty()) {
+                                            return 'No product selected.';
+                                        }
+
+                                        // HTML কন্টেন্ট তৈরি করুন
+                                        $html = '<ul>';
+                                        foreach ($calculateQty as $category => $qty) {
+                                            $productQty = number_format($qty);
+
+                                            if ($productQty < 1){ $html .= ''; break; }
+
+                                            $html .= "<li>{$category} Qty: {$productQty}</li>";
                                         }
                                         $html .= '</ul>';
 
