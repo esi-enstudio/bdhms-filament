@@ -58,10 +58,6 @@ class StockResource extends Resource
                                 ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? "Lifting Price: " . $get('lifting_price') : '')
                                 ->afterStateUpdated(function(Get $get, Set $set){
                                     if(empty($get('product_id'))){
-                                        // Reset fields
-                                        $set('lifting_value', 0);
-                                        $set('value', 0);
-
                                         // Send notification
                                         Notification::make()
                                             ->title('Warning')
@@ -70,7 +66,7 @@ class StockResource extends Resource
                                             ->persistent()
                                             ->send();
                                     }else{
-                                        $product = Product::findOrFail($get('product_id'));
+                                        $product = Product::find($get('product_id'));
 
                                         if($product){
                                             $set('lifting_price', $product->lifting_price);
@@ -79,10 +75,6 @@ class StockResource extends Resource
                                             // Save category directly from product table
                                             $set('category', $product->category);
                                             $set('sub_category', $product->sub_category);
-
-                                            // Calculate values
-                                            $set('lifting_value', round(($get('quantity') ?? 0) * $get('lifting_price')));
-                                            $set('value', round($get('quantity') ?? 0) * $get('price'));
                                         }
                                     }
                                 })
@@ -91,57 +83,11 @@ class StockResource extends Resource
                             TextInput::make('quantity')
                                 ->numeric()
                                 ->live(onBlur:true)
-                                ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? $get('lifting_price').'x'.$get('quantity').' = '. number_format(round($get('lifting_price') * $get('quantity'))).' | '.$get('price').'x'.$get('quantity').' = '. number_format(round($get('price') * $get('quantity'))): '')
-                                ->afterStateUpdated(function(Get $get, Set $set){
-                                    $qty = $get('quantity');
-
-                                    if($qty == '')
-                                    {
-                                        $qty = 0;
-                                    }
-
-                                    $set('lifting_value', round($qty * $get('lifting_price')));
-                                    $set('value', round($qty * $get('price')));
-                                }),
+                                ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? $get('lifting_price').'x'.$get('quantity').' = '. number_format(round($get('lifting_price') * $get('quantity'))).' | '.$get('price').'x'.$get('quantity').' = '. number_format(round($get('price') * $get('quantity'))): ''),
 
 
-                            Hidden::make('lifting_price')
-                                ->afterStateHydrated(function ($component, Get $get, ?string $operation) {
-                                    if (!in_array($operation, ['edit', 'view'])) {
-                                        return;
-                                    }
-
-                                    $component->getState();
-                                }),
-
-                            Hidden::make('price')
-                                ->afterStateHydrated(function ($component, Get $get, ?string $operation) {
-                                    if (!in_array($operation, ['edit', 'view'])) {
-                                        return;
-                                    }
-
-                                    $component->getState();
-                                }),
-
-                            Hidden::make('lifting_value')
-                                ->afterStateHydrated(function ($component, Get $get, ?string $operation) {
-
-                                    if (!in_array($operation, ['edit', 'view'])) {
-                                        return;
-                                    }
-
-                                    $component->state(round($get('lifting_price') * $get('quantity')));
-                                }),
-
-                            Hidden::make('value')
-                                ->afterStateHydrated(function ($component, Get $get, ?string $operation) {
-
-                                    if (!in_array($operation, ['edit', 'view'])) {
-                                        return;
-                                    }
-
-                                    $component->state(round($get('price') * $get('quantity')));
-                                }),
+                            Hidden::make('lifting_price'),
+                            Hidden::make('price'),
                     ]),
             ]);
     }

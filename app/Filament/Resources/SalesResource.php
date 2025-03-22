@@ -69,7 +69,7 @@ class SalesResource extends Resource
                                             ->persistent()
                                             ->send();
                                     }else{
-                                        $product = Product::findOrFail($get('product_id'));
+                                        $product = Product::find($get('product_id'));
                                         $qty = $get('quantity');
 
                                         if($qty == '')
@@ -113,20 +113,6 @@ class SalesResource extends Resource
                                     $houseId = $get('house');
                                     dump($houseId);
                                     dump($get('product_id'));
-                                    // আজকের স্টক খোঁজা
-                                    $stock = Stock::where('house_id', $houseId)
-                                        ->whereDate('created_at', $today)
-                                        ->first();
-//
-//                                    if (!$stock){
-//                                        // যদি আজকের স্টক না থাকে, সর্বশেষ স্টক খুঁজে বের করো
-//                                        $lastStock = Stock::where('house_id', $houseId)
-//                                            ->latest('created_at')
-//                                            ->first();
-//                                        dump($lastStock);
-//                                    }else{
-//                                        dump($get('product_id'));
-//                                    }
                                 }),
 
                             TextInput::make('rate')

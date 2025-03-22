@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static insert(array[] $array)
  * @method static findOrFail(mixed $param)
  * @method static where(string $string, string $string1)
+ * @method static find(mixed $param)
  */
 class Product extends Model
 {
