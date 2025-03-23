@@ -6,6 +6,9 @@ use App\Models\House;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property mixed $house_id
+ */
 class RsoStock extends Model
 {
     protected $guarded = [];

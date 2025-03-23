@@ -5,6 +5,7 @@ namespace App\Observers;
 use Carbon\Carbon;
 use App\Models\Stock;
 use App\Models\RsoStock;
+use Filament\Notifications\Notification;
 
 class RsoStockObserver
 {
@@ -59,20 +60,45 @@ class RsoStockObserver
             ->whereDate('created_at', $today)
             ->first();
 
-        if ($stock) {
-            // Reverse original RsoStock changes (add back the previous data)
-            $stock->update([
-                'products' => $this->restoreProducts($stock->products, $originalProducts),
-                'itopup' => $stock->itopup + $originalItopup,
-            ]);
+        if (!$stock) {
+            // ✅ আজকের স্টক না থাকলে সর্বশেষ স্টক খুঁজে বের করো
+            $lastStock = Stock::where('house_id', $houseId)
+                ->latest('created_at')
+                ->first();
 
-            // Now apply new update (reduce with new values)
-            $stock->update([
-                'products' => $this->reduceProducts($stock->products, $rsoStock->products),
-                'itopup' => $stock->itopup - $rsoStock->itopup,
-            ]);
+            if ($lastStock) {
+                // ✅ পুরনো ডাটা দিয়ে আজকের জন্য নতুন স্টক এন্ট্রি করো
+                $stock = Stock::create([
+                    'house_id' => $houseId,
+                    'products' => $lastStock->products,
+                    'itopup' => $lastStock->itopup,
+                    'created_at' => now(),
+                ]);
+            } else {
+                // ✅ কোন স্টক নেই, ইউজারকে নোটিফাই করো
+                Notification::make()
+                    ->title('Stock Not Available')
+                    ->body("No stock found for this house. Please check your records.")
+                    ->danger()
+                    ->persistent()
+                    ->send();
+                return;
+            }
         }
+
+        // ✅ আগের স্টক রিস্টোর করো
+        $stock->update([
+            'products' => $this->restoreProducts($stock->products, $originalProducts),
+            'itopup' => $stock->itopup + $originalItopup,
+        ]);
+
+        // ✅ নতুন স্টক ডাটা সেট করো
+        $stock->update([
+            'products' => $this->reduceProducts($stock->products, $rsoStock->products),
+            'itopup' => $stock->itopup - $rsoStock->itopup,
+        ]);
     }
+
 
     /**
      * Handle the RsoStock "deleted" event.
@@ -117,11 +143,18 @@ class RsoStockObserver
         $stockProducts = $stockProducts ?? [];
         $rsoStockProducts = $rsoStockProducts ?? [];
 
-        // If stock is empty, just use lifting products (removing unwanted fields)
+        // If stock is empty, just use lifting products
         if (empty($stockProducts)) {
             return collect($rsoStockProducts)->map(function ($product) {
-                unset($product['lifting_price'], $product['price']);
-                return $product;
+                // শুধু `lifting_price` এবং `price` রাখবো, বাকি সব অপ্রয়োজনীয় ফিল্ড মুছে ফেলবো
+                return [
+                    'product_id' => $product['product_id'],
+                    'category' => $product['category'],
+                    'sub_category' => $product['sub_category'],
+                    'quantity' => $product['quantity'],
+                    'lifting_price' => $product['lifting_price'],
+                    'price' => $product['price'],
+                ];
             })->toArray();
         }
 
@@ -136,19 +169,20 @@ class RsoStockObserver
             if ($match) {
                 // Reduce stock quantity and values
                 $product['quantity'] -= $match['quantity'];
-                $product['lifting_value'] -= $match['lifting_value'];
-                $product['value'] -= $match['value'];
 
                 // Prevent negative stock
                 $product['quantity'] = max(0, $product['quantity']);
-                $product['lifting_value'] = max(0, $product['lifting_value']);
-                $product['value'] = max(0, $product['value']);
             }
 
-            // Remove unwanted fields
-            unset($product['lifting_price'], $product['price']);
-
-            return $product;
+            // শুধু প্রয়োজনীয় ফিল্ডগুলো রেখে দেওয়া
+            return [
+                'product_id' => $product['product_id'],
+                'category' => $product['category'],
+                'sub_category' => $product['sub_category'],
+                'quantity' => $product['quantity'],
+                'lifting_price' => $product['lifting_price'],
+                'price' => $product['price'],
+            ];
         })->toArray();
 
         return array_values($updatedStock);
@@ -173,11 +207,17 @@ class RsoStockObserver
 
             if ($match) {
                 $product['quantity'] += $match['quantity'];
-                $product['lifting_value'] += $match['lifting_value'];
-                $product['value'] += $match['value'];
             }
 
-            return $product;
+            // শুধু প্রয়োজনীয় ফিল্ডগুলো রেখে দেওয়া
+            return [
+                'product_id' => $product['product_id'],
+                'category' => $product['category'],
+                'sub_category' => $product['sub_category'],
+                'quantity' => $product['quantity'],
+                'lifting_price' => $product['lifting_price'],
+                'price' => $product['price'],
+            ];
         })->toArray();
 
         return array_values($restoredStock);
