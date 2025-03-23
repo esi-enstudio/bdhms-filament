@@ -140,17 +140,14 @@ class LiftingObserver
     {
         foreach ($originalProducts as $oldProduct) {
             foreach ($existingProducts as &$stockProduct) {
-                if (
-                    $stockProduct['product_id'] === $oldProduct['product_id'] &&
-                    $stockProduct['lifting_price'] === $oldProduct['lifting_price']
-                ) {
+                if ($stockProduct['product_id'] === $oldProduct['product_id']) {
                     $stockProduct['quantity'] -= $oldProduct['quantity'];
 
-                    // যদি পরিমাণ ০ বা কম হয়, তাহলে সেই রেকর্ড মুছে ফেলি
+                    // যদি পরিমাণ 0 বা কম হয়, তাহলে রেকর্ড মুছে ফেলবে
                     if ($stockProduct['quantity'] <= 0) {
-                        $existingProducts = array_filter($existingProducts, function ($p) use ($stockProduct) {
-                            return !($p['product_id'] === $stockProduct['product_id'] && $p['lifting_price'] === $stockProduct['lifting_price']);
-                        });
+                        $existingProducts = array_filter($existingProducts, fn($p) =>
+                            $p['product_id'] !== $stockProduct['product_id']
+                        );
                     }
                     break;
                 }
@@ -181,59 +178,29 @@ class LiftingObserver
 
             foreach ($stockProducts as &$existingProduct) {
                 if ($existingProduct['product_id'] === $newProduct['product_id']) {
-                    // Check if 'lifting_price' exists before comparing
-                    if (!isset($existingProduct['lifting_price']) || !isset($newProduct['lifting_price'])) {
-                        continue;
-                    }
-
-                    if ($existingProduct['lifting_price'] === $newProduct['lifting_price']) {
-                        $existingProduct['quantity'] += $newProduct['quantity'];
-                        $found = true;
-                        break;
-                    }
+                    // ✅ সরাসরি কোয়ান্টিটি আপডেট করা হবে
+                    $existingProduct['quantity'] += $newProduct['quantity'];
+                    $existingProduct['lifting_price'] = $newProduct['lifting_price'];
+                    $existingProduct['price'] = $newProduct['price'];
+                    $found = true;
+                    break;
                 }
             }
 
             if (!$found) {
                 $stockProducts[] = [
-                    'product_id' => $newProduct['product_id'],
-                    'category' => $newProduct['category'],
-                    'sub_category' => $newProduct['sub_category'],
-                    'quantity' => $newProduct['quantity'],
+                    'product_id'    => $newProduct['product_id'],
+                    'category'      => $newProduct['category'],
+                    'sub_category'  => $newProduct['sub_category'],
+                    'quantity'      => $newProduct['quantity'],
                     'lifting_price' => $newProduct['lifting_price'],
-                    'price' => $newProduct['price'],
+                    'price'         => $newProduct['price'],
                 ];
             }
         }
 
         return $stockProducts;
     }
-    
-//    private function mergeProducts(array $existingProducts, array $newProducts): array
-//    {
-//        foreach ($newProducts as $newProduct) {
-//            $found = false;
-//
-//            foreach ($existingProducts as &$existingProduct) {
-//                if (
-//                    $existingProduct['product_id'] === $newProduct['product_id'] &&
-//                    $existingProduct['lifting_price'] === $newProduct['lifting_price']
-//                ) {
-//                    // একই প্রোডাক্ট ও লিফটিং প্রাইজ থাকলে পরিমাণ বাড়াও
-//                    $existingProduct['quantity'] += $newProduct['quantity'];
-//                    $found = true;
-//                    break;
-//                }
-//            }
-//
-//            if (!$found) {
-//                // নতুন লিফটিং প্রাইজ হলে নতুন রেকর্ড যোগ করো
-//                $existingProducts[] = $newProduct;
-//            }
-//        }
-//
-//        return $existingProducts;
-//    }
 
 
     /**
@@ -244,11 +211,10 @@ class LiftingObserver
         if (!$oldLiftingProducts) return $stockProducts ?? [];
 
         return collect($stockProducts)->map(function ($product) use ($oldLiftingProducts) {
-            // Find matching product with the same lifting_price
-            $match = collect($oldLiftingProducts)->first(function ($lifting) use ($product) {
-                return $lifting['product_id'] == $product['product_id'] &&
-                    $lifting['lifting_price'] == $product['lifting_price'];
-            });
+            // ✅ শুধু product_id চেক করবে
+            $match = collect($oldLiftingProducts)->first(fn($lifting) =>
+                $lifting['product_id'] == $product['product_id']
+            );
 
             if ($match) {
                 $product['quantity'] -= $match['quantity'];

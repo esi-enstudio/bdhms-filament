@@ -146,29 +146,21 @@ class SalesObserver
         if (!$stockProducts) return []; // If no stock, return empty array
 
         return collect($stockProducts)->map(function ($product) use ($saleProducts) {
-//            dd($product);
+
             $matchingSales = collect($saleProducts)->where('product_id', $product['product_id']);
 
             if ($matchingSales->isNotEmpty()) {
                 // Ensure missing keys default to 0 to avoid errors
                 $product['quantity'] = $product['quantity'] ?? 0;
-                $product['lifting_value'] = $product['lifting_value'] ?? 0;
-                $product['value'] = $product['value'] ?? 0;
 
-                // Sum the sold quantities and calculate total deduction for sales_value & value
+                // Sum the sold quantities
                 $totalSoldQuantity = $matchingSales->sum(fn($sale) => $sale['quantity'] ?? 0);
-                $totalLiftingValueDeduction = $matchingSales->sum(fn($sale) => $sale['sales_value'] ?? 0);
-                $totalValueDeduction = $matchingSales->sum(fn($sale) => $sale['value'] ?? 0);
 
-                // Reduce values
+                // Reduce stock quantity
                 $product['quantity'] -= $totalSoldQuantity;
-                $product['lifting_value'] -= $totalLiftingValueDeduction;
-                $product['value'] -= $totalValueDeduction;
 
-                // Ensure values do not go negative
+                // Ensure quantity does not go negative
                 $product['quantity'] = max(0, $product['quantity']);
-                $product['lifting_value'] = max(0, $product['lifting_value']);
-                $product['value'] = max(0, $product['value']);
             }
 
             return $product;
@@ -185,22 +177,15 @@ class SalesObserver
             if ($matchingSales->isNotEmpty()) {
                 // Ensure missing keys default to 0 to avoid errors
                 $product['quantity'] = $product['quantity'] ?? 0;
-                $product['lifting_value'] = $product['lifting_value'] ?? 0;
-                $product['value'] = $product['value'] ?? 0;
 
-                // Sum the deleted sales quantities and values
+                // Sum the deleted sales quantities
                 $totalRestoredQuantity = $matchingSales->sum(fn($sale) => $sale['quantity'] ?? 0);
-                $totalSalesValueRestored = $matchingSales->sum(fn($sale) => $sale['sales_value'] ?? 0);
-                $totalValueRestored = $matchingSales->sum(fn($sale) => $sale['value'] ?? 0);
 
-                // Restore stock values
+                // Restore stock quantity
                 $product['quantity'] += $totalRestoredQuantity;
-                $product['lifting_value'] += $totalSalesValueRestored;
-                $product['value'] += $totalValueRestored;
             }
 
             return $product;
         })->toArray();
     }
-
 }
