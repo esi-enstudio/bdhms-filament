@@ -75,11 +75,14 @@ class RsoStockResource extends Resource
                             ->live()
                             ->required()
                             ->helperText(function (Get $get) {
+                                $today = Carbon::today()->toDateString();
                                 $productId = intval($get('product_id'));
                                 $houseId = intval($get('../../house_id')); // ✅ Parent থেকে `house_id` পেতে `../../` ব্যবহার করা
 
-                                // Get stock by house_id
-                                $stock = Stock::where('house_id', $houseId)->first();
+                                // Get today's stock
+                                $stock = Stock::where('house_id', $houseId)
+                                    ->whereDate('created_at', $today)
+                                    ->first();
 
                                 if ($stock) {
                                     if ($productId !== 0) {
@@ -176,6 +179,24 @@ class RsoStockResource extends Resource
                             ->numeric()
                             ->required()
                             ->live(onBlur:true)
+                            ->helperText(function (Get $get){
+                                $productId = intval($get('product_id'));
+                                $liftingPrice = intval($get('lifting_price'));
+                                $quantity = intval($get('quantity'));
+                                $price = intval($get('price'));
+
+                                if (!empty($productId) && $liftingPrice !== null){
+                                    $result = $liftingPrice.'x'.$quantity.' = '.number_format(round($liftingPrice * $quantity));
+
+                                    if ($liftingPrice !== $price){
+                                        $result .= ' | ';
+                                        $result .= $price.'x'.$quantity.' = '.number_format(round($price * $quantity));
+                                    }
+
+                                    return $result;
+                                }
+
+                            })
                             ->disabled(function (Get $get){
                                 $productId = $get('product_id');
                                 $houseId = $get('../../house_id');

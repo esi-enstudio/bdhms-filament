@@ -83,8 +83,24 @@ class StockResource extends Resource
                             TextInput::make('quantity')
                                 ->numeric()
                                 ->live(onBlur:true)
-                                ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? $get('lifting_price').'x'.$get('quantity').' = '. number_format(round($get('lifting_price') * $get('quantity'))).' | '.$get('price').'x'.$get('quantity').' = '. number_format(round($get('price') * $get('quantity'))): ''),
+                                ->helperText(function (Get $get){
+                                    $productId = intval($get('product_id'));
+                                    $liftingPrice = intval($get('lifting_price'));
+                                    $quantity = intval($get('quantity'));
+                                    $price = intval($get('price'));
 
+                                    if (!empty($productId) && $liftingPrice !== null){
+                                        $result = $liftingPrice.'x'.$quantity.' = '.number_format(round($liftingPrice * $quantity));
+
+                                        if ($liftingPrice !== $price){
+                                            $result .= ' | ';
+                                            $result .= $price.'x'.$quantity.' = '.number_format(round($price * $quantity));
+                                        }
+
+                                        return $result;
+                                    }
+
+                                }),
 
                             Hidden::make('lifting_price'),
                             Hidden::make('price'),
