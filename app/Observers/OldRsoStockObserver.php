@@ -7,7 +7,7 @@ use App\Models\Stock;
 use App\Models\RsoStock;
 use Filament\Notifications\Notification;
 
-class RsoStockObserver
+class OldRsoStockObserver
 {
     /**
      * Handle the RsoStock "created" event.

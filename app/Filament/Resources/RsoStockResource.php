@@ -99,9 +99,27 @@ class RsoStockResource extends Resource
                                             }
                                         }
                                     }
-                                }
+                                }else{
+                                    // If no stock today, fetch last available stock
+                                    $lastStock = Stock::where('house_id', $houseId)
+                                        ->latest('created_at')
+                                        ->first();
 
-                                return null;
+                                    if ($productId !== 0) {
+                                        // Get the products array (since it is cast to an array in the model)
+                                        $products = $lastStock->products;
+
+                                        // Find the product with the given product_id
+                                        $product = collect($products)->firstWhere('product_id', $productId);
+
+                                        if ($product) {
+                                            if ($product['quantity'] > 0) {
+                                                // Get the stock quantity of the product
+                                                return "Stock available: " . number_format($product['quantity']) . " pis"; // Show the stock quantity
+                                            }
+                                        }
+                                    }
+                                }
                             })
                             ->afterStateUpdated(function(Get $get, Set $set){
                                 $productId = intval($get('product_id'));
@@ -109,7 +127,7 @@ class RsoStockResource extends Resource
 
                                 if (empty($productId)) {
                                     // Reset fields
-                                    $set('quantity', 0);
+                                    $set('quantity', '');
 
                                     // Send notification
                                     Notification::make()
@@ -128,6 +146,7 @@ class RsoStockResource extends Resource
 
                                         if (!$productStock) {
                                             $set('quantity', ''); // Stock না থাকলে quantity খালি করে দেওয়া
+
                                             Notification::make()
                                                 ->title('Stock Not Available')
                                                 ->body("This product is out of stock.")
@@ -140,7 +159,6 @@ class RsoStockResource extends Resource
 
                                     // ✅ প্রোডাক্ট ডাটা সেট করা
                                     $product = Product::find($productId);
-                                    $qty = intval($get('quantity'));
 
                                     if ($product) {
                                         // Save category directly from product table
@@ -181,21 +199,22 @@ class RsoStockResource extends Resource
                             ->live(onBlur:true)
                             ->helperText(function (Get $get){
                                 $productId = intval($get('product_id'));
-                                $liftingPrice = intval($get('lifting_price'));
+                                $liftingPrice = $get('lifting_price');
                                 $quantity = intval($get('quantity'));
                                 $price = intval($get('price'));
 
-                                if (!empty($productId) && $liftingPrice !== null){
-                                    $result = $liftingPrice.'x'.$quantity.' = '.number_format(round($liftingPrice * $quantity));
+                                if ($productId){
+                                    if ($liftingPrice !== null){
+                                        $result = $liftingPrice.'x'.$quantity.' = '.number_format(round($liftingPrice * $quantity));
 
-                                    if ($liftingPrice !== $price){
-                                        $result .= ' | ';
-                                        $result .= $price.'x'.$quantity.' = '.number_format(round($price * $quantity));
+                                        if ($liftingPrice != $price){
+                                            $result .= ' | ';
+                                            $result .= $price.'x'.$quantity.' = '.number_format(round($price * $quantity));
+                                        }
+
+                                        return $result;
                                     }
-
-                                    return $result;
                                 }
-
                             })
                             ->disabled(function (Get $get){
                                 $productId = $get('product_id');

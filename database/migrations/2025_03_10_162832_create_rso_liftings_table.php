@@ -19,7 +19,6 @@ return new class extends Migration
             $table->foreignIdFor( Rso::class);
             $table->json('products')->nullable();
             $table->integer('itopup')->nullable();
-            $table->string('attempt')->nullable();
             $table->string('status')->nullable();
             $table->string('remarks')->nullable();
             $table->timestamps();
