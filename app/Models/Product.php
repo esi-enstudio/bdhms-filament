@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static findOrFail(mixed $param)
  * @method static where(string $string, string $string1)
  * @method static find(mixed $param)
+ * @method static firstWhere(string $string, int $int)
  */
 class Product extends Model
 {

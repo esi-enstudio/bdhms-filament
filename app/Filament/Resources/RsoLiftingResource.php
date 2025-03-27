@@ -334,20 +334,28 @@ class RsoLiftingResource extends Resource
                                             ->whereDate('created_at', $today)
                                             ->first();
 
+                                        $html = '';
+
                                         // If stock exists, loop through the products
                                         if ($stock && $stock->products) {
-                                            foreach ($stock->products as $item) {
-                                                $product = Product::find($item['product_id'])->first();
-
-                                                $data = "<strong>{$product->code}</strong>";
-                                                $data .= ' - ';
-                                                $data .= 'Qty: '.$product->quantity;
-
-                                                return new HtmlString($data);
-                                            }
+                                            $html = self::getHtml($stock, $html);
                                         } else {
-                                            dump('No stock available for today.');
+
+                                            // Get last stock
+                                            $lastStock = RsoStock::where('house_id', $houseId)
+                                                ->where('rso_id', $rsoId)
+                                                ->latest('created_at')
+                                                ->first();
+
+                                            // If stock exists, loop through the products
+                                            if ($lastStock && $lastStock->products) {
+                                                $html = self::getHtml($lastStock, $html);
+                                            }
+
+                                            return new HtmlString($html);
                                         }
+
+                                        return new HtmlString($html);
                                     })
                             ])
                     ]),
@@ -412,5 +420,42 @@ class RsoLiftingResource extends Resource
             'view' => Pages\ViewRsoLifting::route('/{record}'),
             'edit' => Pages\EditRsoLifting::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * @param $stock
+     * @param string $html
+     * @return string
+     */
+    public static function getHtml($stock, string $html): string
+    {
+        foreach ($stock->products as $item) {
+            $data = "<strong>" . Product::firstWhere('id', $item['product_id'])->code . "</strong>";
+            $data .= ' => ';
+            $data .= number_format($item['quantity']) . ' pcs, ';
+            $data .= '<br>';
+
+            $html .= $data;
+        }
+
+        $html .= '<hr>';
+
+        $categoryWiseTotals = collect($stock->products)
+            ->groupBy('category')
+            ->map(function ($items){
+                return $items->sum(function ($item){
+                    return $item['quantity'] * $item['lifting_price'];
+                });
+            });
+
+        foreach ($categoryWiseTotals as $category => $totalAmount){
+            $html .= '<strong>Total '.$category.'</strong>: '.number_format($totalAmount).' Tk <br>';
+        }
+
+        $html .= '<hr>';
+        $html .= '<strong>Grand Total: </strong>'.number_format($categoryWiseTotals->sum()).' Tk';
+
+
+        return $html;
     }
 }
