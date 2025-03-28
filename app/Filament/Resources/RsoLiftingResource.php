@@ -39,9 +39,6 @@ class RsoLiftingResource extends Resource
 
     protected static ?string $navigationGroup = 'Daily Sales & Stock ( Rso )';
 
-    public ?int $house_id = null; // ✅ Livewire প্রপার্টি
-    public ?int $rso_id = null;   // ✅ Livewire প্রপার্টি
-
     public static function form(Form $form): Form
     {
         return $form
@@ -90,123 +87,6 @@ class RsoLiftingResource extends Resource
                                     ->label('Name')
                                     ->live()
                                     ->required()
-                                    ->helperText(function (Get $get) {
-                                        $today = Carbon::today()->toDateString();
-                                        $productId = intval($get('product_id'));
-                                        $houseId = intval($get('../../house_id')); // ✅ Parent থেকে `house_id` পেতে `../../` ব্যবহার করা
-
-                                        // Get today's stock
-                                        $stock = RsoStock::where('house_id', $houseId)
-                                            ->whereDate('created_at', $today)
-                                            ->first();
-
-                                        if ($stock) {
-                                            if ($productId !== 0) {
-                                                // Get the products array (since it is cast to an array in the model)
-                                                $products = $stock->products;
-
-                                                // Find the product with the given product_id
-                                                $product = collect($products)->firstWhere('product_id', $productId);
-
-                                                if ($product) {
-                                                    if ($product['quantity'] > 0) {
-                                                        // Get the stock quantity of the product
-                                                        return "Stock available: " . number_format($product['quantity']) . " pis"; // Show the stock quantity
-                                                    }
-                                                }
-                                            }
-                                        }else{
-                                            // If no stock today, fetch last available stock
-                                            $lastStock = RsoStock::where('house_id', $houseId)
-                                                ->latest('created_at')
-                                                ->first();
-
-                                            if ($productId !== 0) {
-                                                // Get the products array (since it is cast to an array in the model)
-                                                $products = $lastStock->products;
-
-                                                // Find the product with the given product_id
-                                                $product = collect($products)->firstWhere('product_id', $productId);
-
-                                                if ($product) {
-                                                    if ($product['quantity'] > 0) {
-                                                        // Get the stock quantity of the product
-                                                        return "Stock available: " . number_format($product['quantity']) . " pis"; // Show the stock quantity
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    })
-                                    ->afterStateUpdated(function(Get $get, Set $set){
-                                        $productId = intval($get('product_id'));
-                                        $houseId = intval($get('../../house_id'));
-
-                                        if (empty($productId)) {
-                                            // Reset fields
-                                            $set('quantity', '');
-
-                                            // Send notification
-                                            Notification::make()
-                                                ->title('Warning')
-                                                ->body('Please select a product.')
-                                                ->warning()
-                                                ->persistent()
-                                                ->send();
-                                        }else{
-                                            // ✅ স্টক চেক করা
-                                            $stock = RsoStock::where('house_id', $houseId)->first();
-
-                                            if ($stock) {
-                                                $products = $stock->products;
-                                                $productStock = collect($products)->firstWhere('product_id', $productId);
-
-                                                if (!$productStock) {
-                                                    $set('quantity', ''); // Stock না থাকলে quantity খালি করে দেওয়া
-
-                                                    Notification::make()
-                                                        ->title('Stock Not Available')
-                                                        ->body("This product is out of stock.")
-                                                        ->danger()
-                                                        ->persistent()
-                                                        ->send();
-                                                    return;
-                                                }
-                                            }
-
-                                            // ✅ প্রোডাক্ট ডাটা সেট করা
-                                            $product = Product::find($productId);
-
-                                            if ($product) {
-                                                // Save category directly from product table
-                                                $set('category', $product->category);
-                                                $set('sub_category', $product->sub_category);
-                                                $set('lifting_price', $product->lifting_price);
-                                                $set('price', $product->price);
-                                            }
-                                        }
-
-                                    })
-                                    ->rules([
-                                        function (Get $get, Set $set) {
-                                            return function (string $attribute, $value, Closure $fail) use ($get, $set) {
-                                                $productId = $get('product_id');
-                                                $houseId = $get('../../house_id');
-
-                                                // স্টক খুঁজে বের করা
-                                                $stock = RsoStock::where('house_id', $houseId)->first();
-
-                                                if ($stock) {
-                                                    $products = $stock->products;
-                                                    $product = collect($products)->firstWhere('product_id', $productId);
-
-                                                    if (!$product)
-                                                    {
-                                                        $fail("Product not found in stock");
-                                                    }
-                                                }
-                                            };
-                                        }
-                                    ])
                                     ->options(fn() => Product::where('status','active')->pluck('code','id')),
 
                                 TextInput::make('quantity')
@@ -367,11 +247,11 @@ class RsoLiftingResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('house_id')
-                    ->numeric()
+                Tables\Columns\TextColumn::make('house.name')
+                    ->description(fn(RsoLifting $rsoLifting): string => $rsoLifting->house->code)
                     ->sortable(),
-                Tables\Columns\TextColumn::make('rso_id')
-                    ->numeric()
+                Tables\Columns\TextColumn::make('rso.name')
+                    ->description(fn(RsoLifting $rsoLifting): string => $rsoLifting->rso->itop_number)
                     ->sortable(),
                 Tables\Columns\TextColumn::make('itopup')
                     ->numeric()

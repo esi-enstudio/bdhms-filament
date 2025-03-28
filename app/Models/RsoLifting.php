@@ -5,6 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property mixed $house_id
+ * @property mixed $products
+ */
 class RsoLifting extends Model
 {
     protected $guarded = [];

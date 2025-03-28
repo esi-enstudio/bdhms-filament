@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property mixed $house_id
  * @method static where(string $string, int $houseId)
+ * @method static create(array $array)
  */
 class RsoStock extends Model
 {

@@ -2,13 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\RsoLifting;
 use App\Models\Sales;
 use App\Models\Lifting;
 use App\Models\RsoStock;
 use App\Models\Commission;
+use App\Observers\RsoLiftingObserver;
 use App\Observers\SalesObserver;
 use App\Observers\LiftingObserver;
-use App\Observers\OldRsoStockObserver;
+use App\Observers\RsoStockObserver;
 use App\Observers\CommissionObserver;
 use Illuminate\Support\ServiceProvider;
 
@@ -30,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
         Lifting::observe(LiftingObserver::class);
         Sales::observe(SalesObserver::class);
         Commission::observe(CommissionObserver::class);
-        RsoStock::observe(OldRsoStockObserver::class);
+        RsoStock::observe(RsoStockObserver::class);
+        RsoLifting::observe(RsoLiftingObserver::class);
     }
 }
