@@ -6,9 +6,12 @@ use App\Filament\Resources\ProductResource\Pages;
 use App\Filament\Resources\ProductResource\RelationManagers;
 use App\Models\Product;
 use Filament\Forms;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -24,19 +27,19 @@ class ProductResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('name')
+                TextInput::make('name')
                     ->maxLength(255),
-                Forms\Components\TextInput::make('code')
+                TextInput::make('code')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\Select::make('category')
+                Select::make('category')
                     ->required()
                     ->options([
                         'SC' => 'Scratch Card',
                         'SIM' => 'SIM',
                         'DEVICE' => 'DEVICE',
                     ]),
-                Forms\Components\Select::make('sub_category')
+                Select::make('sub_category')
                     ->required()
                     ->options([
                         'VOICE' => 'Voice',
@@ -47,14 +50,17 @@ class ProductResource extends Resource
                         'ESWAP' => 'Eswap',
                         'WIFI' => 'WIFI',
                     ]),
-                Forms\Components\TextInput::make('price')
+                TextInput::make('price')
                     ->maxLength(255),
-                Forms\Components\TextInput::make('lifting_price')
+                TextInput::make('lifting_price')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\TextInput::make('offer')
+                TextInput::make('retailer_price')
+                    ->required()
                     ->maxLength(255),
-                Forms\Components\Select::make('status')
+                TextInput::make('offer')
+                    ->maxLength(255),
+                Select::make('status')
                     ->required()
                     ->default('active')
                     ->options([
@@ -68,30 +74,32 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
+                TextColumn::make('name')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('code')
+                TextColumn::make('code')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('category')
+                TextColumn::make('category')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('sub_category')
+                TextColumn::make('sub_category')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('price')
+                TextColumn::make('price')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('lifting_price')
+                TextColumn::make('lifting_price')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('offer')
+                TextColumn::make('retailer_price')
+                    ->searchable(),
+                TextColumn::make('offer')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('status')
+                TextColumn::make('status')
                     ->badge()
                     ->color('success')
                     ->formatStateUsing(fn(string $state): string => Str::title($state)),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -127,5 +135,10 @@ class ProductResource extends Resource
             'view' => Pages\ViewProduct::route('/{record}'),
             'edit' => Pages\EditProduct::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->latest('created_at');
     }
 }

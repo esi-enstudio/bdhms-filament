@@ -250,6 +250,7 @@ class SalesResource extends Resource
 
                                     $set('sales_value', round($qty * $rate));
                                 }),
+
                             TextInput::make('sales_value')->readOnly(),
                         ]),
             ]);

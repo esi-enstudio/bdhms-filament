@@ -128,4 +128,9 @@ class HouseResource extends Resource
             'edit' => Pages\EditHouse::route('/{record}/edit'),
         ];
     }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->latest('created_at');
+    }
 }

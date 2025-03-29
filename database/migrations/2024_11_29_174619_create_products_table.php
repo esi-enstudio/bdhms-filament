@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('sub_category')->nullable();
             $table->string('price')->nullable();
             $table->string('lifting_price');
+            $table->string('retailer_price')->nullable();
             $table->string('offer')->nullable();
             $table->string('status')->default('active');
             $table->timestamps();

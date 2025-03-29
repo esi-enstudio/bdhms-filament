@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property mixed $house_id
  * @method static where(string $string, int $houseId)
  * @method static create(array $array)
+ * @method static firstOrNew(array $array)
+ * @method static firstWhere(string $string, int $houseId)
  */
 class RsoStock extends Model
 {

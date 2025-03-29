@@ -44,145 +44,96 @@ class RsoLiftingResource extends Resource
         return $form
             ->columns(4)
             ->schema([
-                Forms\Components\Group::make()
+                Group::make()
                     ->columnSpan(3)
                     ->schema([
-                        Select::make('house_id')
-                            ->label('House')
-                            ->live()
-                            ->afterStateUpdated(fn(Set $set) => $set('rso_id', null))
-                            ->options(fn() => House::where('status','active')->pluck('code','id'))
-                            ->required(),
+                        Section::make()
+                            ->schema([
+                                Select::make('house_id')
+                                    ->disabledOn(['edit'])
+                                    ->label('House')
+                                    ->live()
+                                    ->afterStateUpdated(fn(Set $set) => $set('rso_id', null))
+                                    ->options(fn() => House::where('status','active')->pluck('code','id'))
+                                    ->required(),
 
-                        Select::make('rso_id')
-                            ->label('Rso')
-                            ->live()
-                            ->preload()
-                            ->searchable()
-                            ->required()
-                            ->options(fn(Get $get) => Rso::query()
-                                ->where('status', 'active')
-                                ->where('house_id', $get('house_id'))
-                                ->select('id', 'itop_number', 'name') // Select the required fields
-                                ->get()
-                                ->mapWithKeys(function ($item) {
-                                    return [$item->id => $item->itop_number . ' - ' . $item->name]; // Concatenate fields
-                                })
-                            ),
+                                Select::make('rso_id')
+                                    ->disabledOn(['edit'])
+                                    ->label('Rso')
+                                    ->live()
+                                    ->preload()
+                                    ->searchable()
+                                    ->required()
+                                    ->options(fn(Get $get) => Rso::query()
+                                        ->where('status', 'active')
+                                        ->where('house_id', $get('house_id'))
+                                        ->select('id', 'itop_number', 'name') // Select the required fields
+                                        ->get()
+                                        ->mapWithKeys(function ($item) {
+                                            return [$item->id => $item->itop_number . ' - ' . $item->name]; // Concatenate fields
+                                        })
+                                    ),
 
-                        TextInput::make('itopup')
-                            ->numeric(),
+                                TextInput::make('itopup')
+                                    ->numeric(),
+                            ]),
+
 
                         TableRepeater::make('products')
                             ->reorderable()
                             ->cloneable()
-                            ->collapsible()
                             ->extraAttributes(fn (Get $get) => ['house_id' => $get('house_id')]) // ✅ Parent থেকে `house_id` পাঠানো
                             ->schema([
                                 Hidden::make('category'),
-
                                 Hidden::make('sub_category'),
 
                                 Select::make('product_id')
                                     ->label('Name')
                                     ->live()
                                     ->required()
+                                    ->afterStateUpdated(function(Get $get, Set $set){
+                                        $productId = intval($get('product_id'));
+                                        $houseId = intval($get('../../house_id'));
+
+                                        // ✅ প্রোডাক্ট ডাটা সেট করা
+                                        $product = Product::find($productId);
+
+                                        if ($product) {
+                                            // Save category directly from product table
+                                            $set('category', $product->category);
+                                            $set('sub_category', $product->sub_category);
+                                            $set('lifting_price', $product->lifting_price);
+                                            $set('price', $product->price);
+                                        }
+
+                                        if (empty($productId)) {
+                                            // Reset fields
+                                            $set('quantity', '');
+
+                                            // Send notification
+                                            Notification::make()
+                                                ->title('Warning')
+                                                ->body('Please select a product.')
+                                                ->warning()
+                                                ->persistent()
+                                                ->send();
+                                        }else{
+                                            // ✅ স্টক চেক করা
+                                            $stock = RsoStock::where('house_id', $houseId)->first();
+
+                                            if ($stock) {
+                                                $products = $stock->products;
+                                                $productStock = collect($products)->firstWhere('product_id', $productId);
+                                            }
+                                        }
+
+                                    })
                                     ->options(fn() => Product::where('status','active')->pluck('code','id')),
 
                                 TextInput::make('quantity')
                                     ->numeric()
                                     ->required()
-                                    ->live(onBlur:true)
-                                    ->helperText(function (Get $get){
-                                        $productId = intval($get('product_id'));
-                                        $liftingPrice = $get('lifting_price');
-                                        $quantity = intval($get('quantity'));
-                                        $price = intval($get('price'));
-
-                                        if ($productId){
-                                            if ($liftingPrice !== null){
-                                                $result = $liftingPrice.'x'.$quantity.' = '.number_format(round($liftingPrice * $quantity));
-
-                                                if ($liftingPrice != $price){
-                                                    $result .= ' | ';
-                                                    $result .= $price.'x'.$quantity.' = '.number_format(round($price * $quantity));
-                                                }
-
-                                                return $result;
-                                            }
-                                        }
-                                    })
-                                    ->disabled(function (Get $get){
-                                        $productId = $get('product_id');
-                                        $houseId = $get('../../house_id');
-
-                                        // স্টক ডাটা খোঁজা
-                                        $stock = Stock::where('house_id', $houseId)->first();
-
-                                        if ($stock) {
-                                            $products = $stock->products;
-                                            $product = collect($products)->firstWhere('product_id', $productId);
-
-                                            if (!$product) {
-                                                return true;
-                                            }
-                                        }
-                                    })
-                                    ->afterStateUpdated(function (Get $get, Set $set, $state) {
-                                        $productId = intval($get('product_id'));
-                                        $houseId = intval($get('../../house_id'));
-
-                                        // স্টক ডাটা খোঁজা
-                                        $stock = Stock::where('house_id', $houseId)->first();
-
-                                        if ($stock) {
-                                            $products = $stock->products;
-                                            $product = collect($products)->firstWhere('product_id', $productId);
-
-                                            if ($product) {
-                                                $stockQty = $product['quantity'];
-
-                                                // যদি ইনপুট স্টকের থেকে বেশি হয়, তাহলে ফিল্ডের মান আপডেট হতে দিবো না
-                                                if ($state > $stockQty) {
-                                                    $set('quantity', $stockQty); // ⚠️ স্টকের বেশি হলে সর্বোচ্চ স্টক সেট করে দেওয়া
-
-                                                    Notification::make()
-                                                        ->title('স্টক সীমার বাইরে!')
-                                                        ->body("আপনার পর্যাপ্ত স্টক নেই! সর্বোচ্চ {$stockQty} পিস দিতে পারবেন।")
-                                                        ->danger()
-                                                        ->send();
-                                                }
-                                            }
-                                        }
-                                    })
-                                    ->rules([
-                                        function (Get $get) {
-                                            return function (string $attribute, $value, Closure $fail) use ($get) {
-                                                $productId = $get('product_id');
-                                                $houseId = $get('../../house_id');
-
-                                                // স্টক খুঁজে বের করা
-                                                $stock = Stock::where('house_id', $houseId)->first();
-
-                                                if ($stock) {
-                                                    $products = $stock->products;
-                                                    $product = collect($products)->firstWhere('product_id', $productId);
-                                                    if ($product) {
-                                                        $maxStock = $product['quantity'];
-
-                                                        // ✅ যদি quantity 0 হয়, সাবমিট ব্লক হবে
-                                                        if ($value == 0) {
-                                                            $fail("০ গ্রহণযোগ্য নয়। অন্তত ১টি দিতে হবে।");
-                                                        }
-
-                                                        if ($value > $maxStock) {
-                                                            $fail("আপনার পর্যাপ্ত স্টক নেই! সর্বোচ্চ {$maxStock} পিস ইনপুট দিতে পারবেন।");
-                                                        }
-                                                    }
-                                                }
-                                            };
-                                        }
-                                    ]),
+                                    ->live(onBlur:true),
 
                                 Hidden::make('lifting_price'),
                                 Hidden::make('price'),
@@ -197,6 +148,11 @@ class RsoLiftingResource extends Resource
                 Group::make()
                     ->columnSpan(1)
                     ->schema([
+                        Section::make('Overview')
+                            ->schema([
+
+                            ]),
+
                         Section::make('Current Stock')
                             ->schema([
                                 Placeholder::make('Overview')
@@ -237,7 +193,7 @@ class RsoLiftingResource extends Resource
 
                                         return new HtmlString($html);
                                     })
-                            ])
+                            ]),
                     ]),
             ]);
     }
@@ -265,7 +221,7 @@ class RsoLiftingResource extends Resource
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
@@ -323,6 +279,7 @@ class RsoLiftingResource extends Resource
         $categoryWiseTotals = collect($stock->products)
             ->groupBy('category')
             ->map(function ($items){
+
                 return $items->sum(function ($item){
                     return $item['quantity'] * $item['lifting_price'];
                 });
@@ -337,5 +294,10 @@ class RsoLiftingResource extends Resource
 
 
         return $html;
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->latest('created_at');
     }
 }

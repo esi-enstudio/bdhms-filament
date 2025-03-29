@@ -36,6 +36,7 @@ class RsoStockResource extends Resource
         return $form
             ->schema([
                 Select::make('house_id')
+                    ->disabledOn(['edit'])
                     ->label('House')
                     ->live()
                     ->afterStateUpdated(fn(Set $set) => $set('rso_id', null))
@@ -43,6 +44,7 @@ class RsoStockResource extends Resource
                     ->required(),
 
                 Select::make('rso_id')
+                    ->disabledOn(['edit'])
                     ->label('Rso')
                     ->preload()
                     ->searchable()
@@ -357,5 +359,10 @@ class RsoStockResource extends Resource
             'view' => Pages\ViewRsoStock::route('/{record}'),
             'edit' => Pages\EditRsoStock::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()->latest('created_at');
     }
 }
