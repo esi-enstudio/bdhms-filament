@@ -9,6 +9,7 @@ use App\Models\Retailer;
 use App\Models\Rso;
 use App\Models\RsoSales;
 use App\Models\RsoStock;
+use App\Rules\ProductNotInStockRule;
 use Carbon\Carbon;
 use Closure;
 use Filament\Forms;
@@ -21,11 +22,13 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\HtmlString;
 
 class RsoSalesResource extends Resource
@@ -85,59 +88,84 @@ class RsoSalesResource extends Resource
                                     ->label('Name')
                                     ->live()
                                     ->required()
-                                    ->helperText(function (Get $get){
-                                        dump($get);
-                                    })
-                                    ->afterStateUpdated(function (Get $get, Set $set){
-                                        $retailerPrice = Product::firstWhere('id', intval($get('product_id')))->retailer_price;
-                                        $set('rate', $retailerPrice);
-                                    })
+                                    ->options(fn() => Product::where('status','active')->pluck('code','id'))
                                     ->rules([
-                                        function (Get $get, Set $set) {
-                                            return function (string $attribute, $value, Closure $fail) use ($get, $set) {
-//                                                dd($value);
-                                                $productId = $get('product_id');
-                                                $houseId = $get('../../house_id');
+                                        function (Get $get) {
+                                            return function (string $attribute, $value, Closure $fail) use ($get) {
+                                                // রিকোয়ার্ড ফিল্ড ভ্যালিডেশন
+                                                if (!$value) {
+                                                    $fail('প্রোডাক্ট সিলেক্ট করা বাধ্যতামূলক');
+                                                    return;
+                                                }
 
-                                                // স্টক খুঁজে বের করা
-                                                $stock = RsoStock::where('house_id', $houseId)->wehre('rso_id', 1)->first();
+                                                $houseId = $get('house_id');
+                                                $rsoId = $get('rso_id');
 
-                                                if ($stock) {
-                                                    $products = $stock->products;
-                                                    $product = collect($products)->firstWhere('product_id', $productId);
+                                                if (!$houseId || !$rsoId) {
+                                                    $fail('হাউস এবং আরএসও সিলেক্ট করা হয়নি');
+                                                    return;
+                                                }
 
-                                                    if (!$product)
-                                                    {
-                                                        $fail("Product not found in stock");
-                                                    }
+                                                // RSO স্টক লোড করুন
+                                                $rsoStock = RsoStock::where('house_id', $houseId)
+                                                    ->where('rso_id', $rsoId)
+                                                    ->first();
+
+                                                if (!$rsoStock) {
+                                                    $fail('এই লোকেশনে কোনো স্টক রেকর্ড পাওয়া যায়নি');
+                                                    return;
+                                                }
+
+                                                // প্রোডাক্ট কালেকশন প্রস্তুত করুন
+                                                $products = Collection::make($rsoStock->products);
+
+                                                // প্রোডাক্ট আছে কিনা চেক করুন
+                                                if (!$products->contains(function ($product) use ($value) {
+                                                    return $product == $value; // টাইপ স্ট্রিক্ট কম্পেয়ারিশন
+                                                })) {
+                                                    $fail('এই প্রোডাক্টটি সিলেক্টেড স্টকে নেই!');
                                                 }
                                             };
                                         }
                                     ])
-                                    ->options(fn() => Product::where('status','active')->pluck('code','id')),
+                                    ->afterStateUpdated(function(Get $get, Set $set, ?string $state){
+                                        $productId = intval($get('product_id'));
+
+                                        // ✅ প্রোডাক্ট ডাটা সেট করা
+                                        $product = Product::find($productId);
+
+                                        if ($product) {
+                                            $set('rate', $product->lifting_price);
+
+                                            // Save category directly from product table
+                                            $set('category', $product->category);
+                                            $set('sub_category', $product->sub_category);
+                                            $set('lifting_price', $product->lifting_price);
+                                            $set('price', $product->price);
+                                        }else{
+                                            // If no product selected, Rate field is empty.
+                                            $set('rate', '');
+                                            $set('quantity', '');
+
+                                            // Send notification
+                                            Notification::make()
+                                                ->title('Warning')
+                                                ->body('Please select a product.')
+                                                ->warning()
+                                                ->persistent()
+                                                ->send();
+                                        }
+                                    }),
 
                                 TextInput::make('rate')
                                     ->live(onBlur: true)
                                     ->numeric()
-                                    ->required()
-                                    ->afterStateUpdated(function(Get $get, Set $set){
-                                        $qty = intval($get('quantity'));
-                                        $rate = $get('rate') ?? 0;
-                                    }),
+                                    ->required(),
 
                                 TextInput::make('quantity')
                                     ->numeric()
                                     ->required()
-                                    ->live(onBlur:true)
-                                    ->disabled(function (Get $get){
-
-                                    })
-                                    ->afterStateUpdated(function (Get $get, Set $set, $state) {
-
-                                    })
-                                    ->rules([
-
-                                    ]),
+                                    ->live(onBlur:true),
 
                                 Hidden::make('lifting_price'),
                                 Hidden::make('price'),

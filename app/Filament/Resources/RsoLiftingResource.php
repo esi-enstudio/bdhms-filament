@@ -30,6 +30,7 @@ use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 
 class RsoLiftingResource extends Resource
 {
@@ -93,7 +94,6 @@ class RsoLiftingResource extends Resource
                                     ->required()
                                     ->afterStateUpdated(function(Get $get, Set $set){
                                         $productId = intval($get('product_id'));
-                                        $houseId = intval($get('../../house_id'));
 
                                         // ✅ প্রোডাক্ট ডাটা সেট করা
                                         $product = Product::find($productId);
@@ -104,12 +104,7 @@ class RsoLiftingResource extends Resource
                                             $set('sub_category', $product->sub_category);
                                             $set('lifting_price', $product->lifting_price);
                                             $set('price', $product->price);
-                                        }
-
-                                        if (empty($productId)) {
-                                            // Reset fields
-                                            $set('quantity', '');
-
+                                        }else{
                                             // Send notification
                                             Notification::make()
                                                 ->title('Warning')
@@ -117,16 +112,7 @@ class RsoLiftingResource extends Resource
                                                 ->warning()
                                                 ->persistent()
                                                 ->send();
-                                        }else{
-                                            // ✅ স্টক চেক করা
-                                            $stock = RsoStock::where('house_id', $houseId)->first();
-
-                                            if ($stock) {
-                                                $products = $stock->products;
-                                                $productStock = collect($products)->firstWhere('product_id', $productId);
-                                            }
                                         }
-
                                     })
                                     ->options(fn() => Product::where('status','active')->pluck('code','id')),
 
@@ -142,6 +128,15 @@ class RsoLiftingResource extends Resource
                         TextInput::make('remarks')
                             ->maxLength(255)
                             ->default(null),
+
+                        Select::make('status')
+                            ->required()
+                            ->default('pending')
+                            ->options([
+                                'pending' => 'Pending',
+                                'complete' => 'Complete',
+                                'rejected' => 'Rejected',
+                            ]),
                     ]),
 
 
@@ -150,7 +145,18 @@ class RsoLiftingResource extends Resource
                     ->schema([
                         Section::make('Overview')
                             ->schema([
+                                Placeholder::make('Overview')
+                                    ->label('')
+                                    ->content(function (Get $get){
+                                        $products = collect($get('products'));
+                                        $html = '';
 
+                                        if ($products->isNotEmpty() && $products->pluck('quantity') != ''){
+                                            $html = self::getOverviewData($products, $html);
+                                        }
+
+                                        return new HtmlString($html);
+                                    }),
                             ]),
 
                         Section::make('Current Stock')
@@ -161,7 +167,6 @@ class RsoLiftingResource extends Resource
 
                                         $houseId = intval($get('house_id'));
                                         $rsoId = intval($get('rso_id'));
-
                                         $today = Carbon::today()->toDateString();
 
                                         // Get today's stock
@@ -174,7 +179,7 @@ class RsoLiftingResource extends Resource
 
                                         // If stock exists, loop through the products
                                         if ($stock && $stock->products) {
-                                            $html = self::getHtml($stock, $html);
+                                            $html = self::getCurrentStockData($stock, $html);
                                         } else {
 
                                             // Get last stock
@@ -185,14 +190,14 @@ class RsoLiftingResource extends Resource
 
                                             // If stock exists, loop through the products
                                             if ($lastStock && $lastStock->products) {
-                                                $html = self::getHtml($lastStock, $html);
+                                                $html = self::getCurrentStockData($lastStock, $html);
                                             }
 
                                             return new HtmlString($html);
                                         }
 
                                         return new HtmlString($html);
-                                    })
+                                    }),
                             ]),
                     ]),
             ]);
@@ -212,10 +217,11 @@ class RsoLiftingResource extends Resource
                 Tables\Columns\TextColumn::make('itopup')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('attempt')
-                    ->searchable(),
                 Tables\Columns\TextColumn::make('status')
-                    ->searchable(),
+                    ->searchable()
+                    ->badge()
+                    ->color('success')
+                    ->formatStateUsing(fn(string $state): string => Str::title($state)),
                 Tables\Columns\TextColumn::make('remarks')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
@@ -263,7 +269,7 @@ class RsoLiftingResource extends Resource
      * @param string $html
      * @return string
      */
-    public static function getHtml($stock, string $html): string
+    public static function getCurrentStockData($stock, string $html): string
     {
         foreach ($stock->products as $item) {
             $data = "<strong>" . Product::firstWhere('id', $item['product_id'])->code . "</strong>";
@@ -279,7 +285,6 @@ class RsoLiftingResource extends Resource
         $categoryWiseTotals = collect($stock->products)
             ->groupBy('category')
             ->map(function ($items){
-
                 return $items->sum(function ($item){
                     return $item['quantity'] * $item['lifting_price'];
                 });
@@ -292,6 +297,47 @@ class RsoLiftingResource extends Resource
         $html .= '<hr>';
         $html .= '<strong>Grand Total: </strong>'.number_format($categoryWiseTotals->sum()).' Tk';
 
+
+        return $html;
+    }
+
+    /**
+     * @param $products
+     * @param string $html
+     * @return string
+     */
+    public static function getOverviewData($products, string $html): string
+    {
+        foreach ($products as $item) {
+            if ($item['product_id'] && $item['quantity']){
+                $data = "<strong>" . optional(Product::firstWhere('id', $item['product_id']))->code . "</strong>";
+                $data .= ' => ';
+                $data .= number_format($item['quantity']) . ' pcs, ';
+                $data .= '<br>';
+
+                $html .= $data;
+            }
+        }
+
+        $categoryWiseTotals = $products
+            ->groupBy('category')
+            ->map(function ($items){
+                return $items->sum(function ($item){
+                    return $item['quantity'] * $item['lifting_price'];
+                });
+            });
+
+        foreach ($categoryWiseTotals as $category => $totalAmount){
+            if ($totalAmount > 0){
+                $html .= '<hr>';
+                $html .= '<strong>Total '.$category.'</strong>: '.number_format($totalAmount).' Tk <br>';
+            }
+        }
+
+        if ($categoryWiseTotals->sum() > 0){
+            $html .= '<hr>';
+            $html .= '<strong>Grand Total: </strong>'.number_format($categoryWiseTotals->sum()).' Tk';
+        }
 
         return $html;
     }
