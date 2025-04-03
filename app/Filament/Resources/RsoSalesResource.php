@@ -30,6 +30,7 @@ use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\HtmlString;
+use Illuminate\Validation\ValidationException;
 
 class RsoSalesResource extends Resource
 {
@@ -79,7 +80,6 @@ class RsoSalesResource extends Resource
                         TableRepeater::make('products')
                             ->reorderable()
                             ->cloneable()
-                            ->extraAttributes(fn (Get $get) => ['house_id' => $get('house_id')]) // ✅ Parent থেকে `house_id` পাঠানো
                             ->schema([
                                 Hidden::make('category'),
                                 Hidden::make('sub_category'),
@@ -129,31 +129,58 @@ class RsoSalesResource extends Resource
                                         }
                                     ])
                                     ->afterStateUpdated(function(Get $get, Set $set, ?string $state){
-                                        $productId = intval($get('product_id'));
+                                        $productId = intval($state);
+                                        $houseId = intval($get('../../house_id'));
+                                        $rsoId = intval($get('../../rso_id'));
 
-                                        // ✅ প্রোডাক্ট ডাটা সেট করা
+                                        if (!$productId || !$houseId || !$rsoId) {
+                                            return;
+                                        }
+
+                                        // ✅ RSO স্টক চেক করুন
+                                        $rsoStock = RsoStock::where('house_id', $houseId)
+                                            ->where('rso_id', $rsoId)
+                                            ->latest()
+                                            ->first();
+
+                                        if (!$rsoStock)
+                                        {
+                                            Notification::make()
+                                                ->title('Stock Not Found')
+                                                ->body('এই আর এস ওর কোন স্টক নেই!')
+                                                ->danger()
+                                                ->send();
+
+                                            return;
+                                        }
+
+//                                        if ($rsoStock && !collect($rsoStock->products)->contains('product_id', $productId))
+//                                        {
+//                                            $set('product_id', '');
+//                                            $set('rate', '');
+//                                            $set('quantity', '');
+//
+//                                            Notification::make()
+//                                                ->title('Stock Error')
+//                                                ->body('এই প্রোডাক্টটি আরএসওর স্টকে নেই!')
+//                                                ->danger()
+//                                                ->persistent()
+//                                                ->send();
+//
+//                                            return;
+//                                        }elseif ()
+
+                                        // ✅ প্রোডাক্ট ডাটা সেট করুন
                                         $product = Product::find($productId);
-
                                         if ($product) {
                                             $set('rate', $product->lifting_price);
-
-                                            // Save category directly from product table
                                             $set('category', $product->category);
                                             $set('sub_category', $product->sub_category);
                                             $set('lifting_price', $product->lifting_price);
                                             $set('price', $product->price);
-                                        }else{
-                                            // If no product selected, Rate field is empty.
+                                        } else {
                                             $set('rate', '');
                                             $set('quantity', '');
-
-                                            // Send notification
-                                            Notification::make()
-                                                ->title('Warning')
-                                                ->body('Please select a product.')
-                                                ->warning()
-                                                ->persistent()
-                                                ->send();
                                         }
                                     }),
 
