@@ -74,7 +74,30 @@ class RsoSalesResource extends Resource
                                     ->mapWithKeys(function ($item) {
                                         return [$item->id => $item->itop_number . ' - ' . $item->name]; // Concatenate fields
                                     })
-                                ),
+                                )
+                                ->afterStateUpdated(function (Get $get, Set $set, ?string $state){
+                                    $houseId = intval($get('house_id'));
+                                    $rsoId = intval($state);
+
+                                    // ✅ RSO স্টক চেক করুন
+                                    $rsoStock = RsoStock::where('house_id', $houseId)
+                                        ->where('rso_id', $rsoId)
+                                        ->latest()
+                                        ->first();
+
+                                    if (!$rsoStock)
+                                    {
+                                        // ✅ Repeater-এর products ফিল্ড খালি করে দিন
+                                        $set('products', []);
+                                        $set('rso_id', '');
+
+                                        Notification::make()
+                                            ->title('Stock Not Found')
+                                            ->body('এই আর এস ওর কোন স্টক নেই!')
+                                            ->danger()
+                                            ->send();
+                                    }
+                                }),
                         ]),
 
                         TableRepeater::make('products')
@@ -89,45 +112,6 @@ class RsoSalesResource extends Resource
                                     ->live()
                                     ->required()
                                     ->options(fn() => Product::where('status','active')->pluck('code','id'))
-                                    ->rules([
-                                        function (Get $get) {
-                                            return function (string $attribute, $value, Closure $fail) use ($get) {
-                                                // রিকোয়ার্ড ফিল্ড ভ্যালিডেশন
-                                                if (!$value) {
-                                                    $fail('প্রোডাক্ট সিলেক্ট করা বাধ্যতামূলক');
-                                                    return;
-                                                }
-
-                                                $houseId = $get('house_id');
-                                                $rsoId = $get('rso_id');
-
-                                                if (!$houseId || !$rsoId) {
-                                                    $fail('হাউস এবং আরএসও সিলেক্ট করা হয়নি');
-                                                    return;
-                                                }
-
-                                                // RSO স্টক লোড করুন
-                                                $rsoStock = RsoStock::where('house_id', $houseId)
-                                                    ->where('rso_id', $rsoId)
-                                                    ->first();
-
-                                                if (!$rsoStock) {
-                                                    $fail('এই লোকেশনে কোনো স্টক রেকর্ড পাওয়া যায়নি');
-                                                    return;
-                                                }
-
-                                                // প্রোডাক্ট কালেকশন প্রস্তুত করুন
-                                                $products = Collection::make($rsoStock->products);
-
-                                                // প্রোডাক্ট আছে কিনা চেক করুন
-                                                if (!$products->contains(function ($product) use ($value) {
-                                                    return $product == $value; // টাইপ স্ট্রিক্ট কম্পেয়ারিশন
-                                                })) {
-                                                    $fail('এই প্রোডাক্টটি সিলেক্টেড স্টকে নেই!');
-                                                }
-                                            };
-                                        }
-                                    ])
                                     ->afterStateUpdated(function(Get $get, Set $set, ?string $state){
                                         $productId = intval($state);
                                         $houseId = intval($get('../../house_id'));
@@ -145,42 +129,37 @@ class RsoSalesResource extends Resource
 
                                         if (!$rsoStock)
                                         {
+                                            $set('product_id', '');
+                                            $set('rate', '');
+                                            $set('quantity', '');
+
                                             Notification::make()
                                                 ->title('Stock Not Found')
                                                 ->body('এই আর এস ওর কোন স্টক নেই!')
                                                 ->danger()
                                                 ->send();
+                                        }else{
+                                            if (!collect($rsoStock->products)->contains('product_id', $productId))
+                                            {
+                                                $set('product_id', '');
+                                                $set('rate', '');
+                                                $set('quantity', '');
 
-                                            return;
-                                        }
+                                                Notification::make()
+                                                    ->title('Product Not Found')
+                                                    ->body('এই আর এস ওর উক্ত প্রোডাক্টটি নেই!')
+                                                    ->danger()
+                                                    ->send();
+                                            }else{
+                                                // ✅ প্রোডাক্ট ডাটা সেট করুন
+                                                $product = Product::find($productId);
 
-//                                        if ($rsoStock && !collect($rsoStock->products)->contains('product_id', $productId))
-//                                        {
-//                                            $set('product_id', '');
-//                                            $set('rate', '');
-//                                            $set('quantity', '');
-//
-//                                            Notification::make()
-//                                                ->title('Stock Error')
-//                                                ->body('এই প্রোডাক্টটি আরএসওর স্টকে নেই!')
-//                                                ->danger()
-//                                                ->persistent()
-//                                                ->send();
-//
-//                                            return;
-//                                        }elseif ()
-
-                                        // ✅ প্রোডাক্ট ডাটা সেট করুন
-                                        $product = Product::find($productId);
-                                        if ($product) {
-                                            $set('rate', $product->lifting_price);
-                                            $set('category', $product->category);
-                                            $set('sub_category', $product->sub_category);
-                                            $set('lifting_price', $product->lifting_price);
-                                            $set('price', $product->price);
-                                        } else {
-                                            $set('rate', '');
-                                            $set('quantity', '');
+                                                $set('rate', $product->lifting_price);
+                                                $set('category', $product->category);
+                                                $set('sub_category', $product->sub_category);
+                                                $set('lifting_price', $product->lifting_price);
+                                                $set('price', $product->price);
+                                            }
                                         }
                                     }),
 
@@ -192,7 +171,33 @@ class RsoSalesResource extends Resource
                                 TextInput::make('quantity')
                                     ->numeric()
                                     ->required()
-                                    ->live(onBlur:true),
+                                    ->live(onBlur:true)
+                                    ->afterStateUpdated(function (Get $get, Set $set){
+                                        $productId = intval($get('product_id'));
+                                        $houseId = intval($get('../../house_id'));
+                                        $rsoId = intval($get('../../rso_id'));
+                                        $qty = intval($get('quantity'));
+
+                                        // ✅ RSO স্টক চেক করুন
+                                        $rsoStock = RsoStock::where('house_id', $houseId)
+                                            ->where('rso_id', $rsoId)
+                                            ->latest()
+                                            ->first();
+
+                                        $stockQty = collect($rsoStock->products)
+                                            ->firstWhere('product_id', $productId)['quantity'] ?? 0;
+
+                                        if($qty > $stockQty)
+                                        {
+                                            $set('quantity', $stockQty);
+
+                                            Notification::make()
+                                                ->title('Stock Limit Exceeded')
+                                                ->body("আপনার চাহিদার পরিমাণ স্টকের চেয়ে বেশি। স্টকে থাকা পরিমাণ সেট করা হয়েছে ({$stockQty})।")
+                                                ->warning()
+                                                ->send();
+                                        }
+                                    }),
 
                                 Hidden::make('lifting_price'),
                                 Hidden::make('price'),

@@ -3,11 +3,13 @@
 namespace App\Providers;
 
 use App\Models\RsoLifting;
+use App\Models\RsoSales;
 use App\Models\Sales;
 use App\Models\Lifting;
 use App\Models\RsoStock;
 use App\Models\Commission;
 use App\Observers\RsoLiftingObserver;
+use App\Observers\RsoSalesObserver;
 use App\Observers\SalesObserver;
 use App\Observers\LiftingObserver;
 use App\Observers\RsoStockObserver;
@@ -34,5 +36,6 @@ class AppServiceProvider extends ServiceProvider
         Commission::observe(CommissionObserver::class);
         RsoStock::observe(RsoStockObserver::class);
         RsoLifting::observe(RsoLiftingObserver::class);
+        RsoSales::observe(RsoSalesObserver::class);
     }
 }
