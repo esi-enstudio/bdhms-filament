@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static where(string $string, mixed $houseId)
  * @method static whereDate(string $string, string $today)
  * @method static create(array $array)
+ * @method static first()
  */
 class Stock extends Model
 {

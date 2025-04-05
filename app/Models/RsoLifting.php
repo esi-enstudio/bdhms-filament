@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property mixed $house_id
  * @property mixed $products
+ * @property mixed $rso_id
  */
 class RsoLifting extends Model
 {

@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Product;
 use App\Models\RsoLifting;
 use App\Models\RsoStock;
+use App\Models\Stock;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +16,45 @@ class RsoLiftingObserver
      */
     public function created(RsoLifting $lifting): void
     {
-        $this->updateRsoStock($lifting, 'add');
+        $today = Carbon::today();
+        $rsoId = $lifting->rso_id;
+        $houseId = $lifting->house_id;
+
+        // প্রথমে আজকের তারিখে স্টক খুঁজুন (created_at ব্যবহার করে)
+        $todayStock = RsoStock::where('rso_id', $rsoId)
+            ->whereDate('created_at', $today)
+            ->first();
+
+        if ($todayStock) {
+            // আজকের স্টক থাকলে আপডেট করুন
+            $this->updateStock($todayStock, $lifting);
+        } else {
+            // আজকের স্টক না থাকলে সর্বশেষ স্টক খুঁজুন
+            $latestStock = RsoStock::where('rso_id', $rsoId)
+                ->latest('created_at')
+                ->first();
+
+            if ($latestStock) {
+                // সর্বশেষ স্টক কপি করে নতুন রেকর্ড তৈরি করুন
+                $newStock = $latestStock->replicate();
+                $newStock->save(); // নতুন created_at স্বয়ংক্রিয়ভাবে সেট হবে
+
+                $this->updateStock($newStock, $lifting);
+            } else {
+                // কোনো স্টক না থাকলে নতুন তৈরি করুন
+                $newStock = new RsoStock();
+                $newStock->house_id = $houseId;
+                $newStock->rso_id = $rsoId;
+                $newStock->products = [];
+                $newStock->itopup = null;
+                $newStock->save();
+
+                $this->updateStock($newStock, $lifting);
+            }
+        }
+
+        // মূল Stock থেকে লিফটিং বাদ দিন
+        $this->removeFromStock($lifting);
     }
 
     /**
@@ -58,97 +97,64 @@ class RsoLiftingObserver
         //
     }
 
-
-
-    protected function updateRsoStock(RsoLifting $lifting, string $operation): void
+    protected function updateStock($stock, $lifting): void
     {
-        DB::transaction(function () use ($lifting, $operation) {
-            $products = $this->completeProductData($lifting->products);
-            $todayStock = RsoStock::firstOrNew([
-                'house_id' => $lifting->house_id,
-                'rso_id' => $lifting->rso_id,
-                'created_at' => Carbon::today()
-            ]);
+        $currentProducts = $stock->products ?? [];
+        $liftingProducts = $lifting->products ?? [];
 
-            if (!$todayStock->exists) {
-                $lastStock = RsoStock::where('house_id', $lifting->house_id)
-                    ->where('rso_id', $lifting->rso_id)
-                    ->latest()
-                    ->first();
-
-                if ($lastStock) {
-                    $todayStock->fill($lastStock->only(['house_id', 'rso_id', 'itopup']));
-                    $todayStock->products = $lastStock->products;
-                }
-            }
-
-            $todayStock->products = $operation === 'add'
-                ? $this->mergeProducts($todayStock->products ?? [], $products)
-                : $this->subtractProducts($todayStock->products ?? [], $products);
-
-            $todayStock->itopup = $operation === 'add'
-                ? ($todayStock->itopup ?? 0) + $lifting->itopup
-                : ($todayStock->itopup ?? 0) - $lifting->itopup;
-
-            $todayStock->save();
-        });
-    }
-
-    protected function completeProductData(array $products): array
-    {
-        return array_map(function ($product) {
-            $productDetails = Product::find($product['product_id'] ?? null);
-
-            return [
-                'product_id'    => $product['product_id'],
-                'quantity'      => $product['quantity'] ?? 0,
-                'category'      => $product['category'] ?? $productDetails->category ?? null,
-                'sub_category'  => $product['sub_category'] ?? $productDetails->sub_category ?? null,
-                'lifting_price' => $product['lifting_price'] ?? $productDetails->lifting_price ?? 0,
-                'price'         => $product['price'] ?? $productDetails->price ?? 0,
-            ];
-        }, $products);
-    }
-
-    protected function mergeProducts(array $existing, array $new): array
-    {
-        $merged = $existing;
-
-        foreach ($new as $newProduct) {
+        // প্রোডাক্ট মার্জ করার লজিক
+        foreach ($liftingProducts as $product) {
             $found = false;
-            foreach ($merged as &$existingProduct) {
-                if ($existingProduct['product_id'] == $newProduct['product_id']) {
-                    $existingProduct['quantity'] += $newProduct['quantity'];
+            foreach ($currentProducts as &$currentProduct) {
+                if ($currentProduct['product_id'] == $product['product_id']) {
+                    $currentProduct['quantity'] += $product['quantity'];
                     $found = true;
                     break;
                 }
             }
 
             if (!$found) {
-                $merged[] = $newProduct;
+                $currentProducts[] = $product;
             }
         }
 
-        return $merged;
+        // আইটোপ আপডেট (যদি থাকে)
+        if ($lifting->itopup) {
+            $currentItopup = $stock->itopup ?? 0;
+            $stock->itopup = $currentItopup + $lifting->itopup;
+        }
+
+        $stock->products = $currentProducts;
+        $stock->save();
     }
 
-    protected function subtractProducts(array $existing, array $remove): array
+    protected function removeFromStock($lifting): void
     {
-        $result = [];
+        $stock = Stock::first(); // আপনার Stock মডেল অনুযায়ী এডজাস্ট করুন
 
-        foreach ($existing as $existingProduct) {
-            foreach ($remove as $removeProduct) {
-                if ($existingProduct['product_id'] == $removeProduct['product_id']) {
-                    $existingProduct['quantity'] -= $removeProduct['quantity'];
-                    break;
+        if ($stock) {
+            $currentProducts = $stock->products ?? [];
+            $liftingProducts = $lifting->products ?? [];
+
+            // লিফট করা প্রোডাক্ট বাদ দিন
+            foreach ($liftingProducts as $product) {
+                foreach ($currentProducts as &$currentProduct) {
+                    if ($currentProduct['product_id'] == $product['product_id']) {
+                        $currentProduct['quantity'] -= $product['quantity'];
+                        break;
+                    }
                 }
             }
 
-            if ($existingProduct['quantity'] > 0) {
-                $result[] = $existingProduct;
-            }
-        }
+            $stock->products = $currentProducts;
 
-        return $result;
+            // আইটোপ বাদ দিন (যদি থাকে)
+            if ($lifting->itopup) {
+                $currentItopup = $stock->itopup ?? 0;
+                $stock->itopup = $currentItopup - $lifting->itopup;
+            }
+
+            $stock->save();
+        }
     }
 }

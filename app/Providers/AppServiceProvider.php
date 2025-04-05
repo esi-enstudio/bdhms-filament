@@ -34,7 +34,7 @@ class AppServiceProvider extends ServiceProvider
         Lifting::observe(LiftingObserver::class);
         Sales::observe(SalesObserver::class);
         Commission::observe(CommissionObserver::class);
-        RsoStock::observe(RsoStockObserver::class);
+//        RsoStock::observe(RsoStockObserver::class);
         RsoLifting::observe(RsoLiftingObserver::class);
         RsoSales::observe(RsoSalesObserver::class);
     }

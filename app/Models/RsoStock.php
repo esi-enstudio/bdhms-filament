@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property mixed $house_id
+ * @property mixed $house
  * @method static where(string $string, int $houseId)
  * @method static create(array $array)
  * @method static firstOrNew(array $array)

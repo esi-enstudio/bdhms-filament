@@ -76,64 +76,6 @@ class RsoStockResource extends Resource
                             ->label('Name')
                             ->live()
                             ->required()
-                            ->helperText(function (Get $get) {
-                                $today = Carbon::today()->toDateString();
-                                $productId = intval($get('product_id'));
-                                $houseId = intval($get('../../house_id')); // ✅ Parent থেকে `house_id` পেতে `../../` ব্যবহার করা
-
-                                // Get today's stock
-                                $stock = Stock::where('house_id', $houseId)
-                                    ->whereDate('created_at', $today)
-                                    ->first();
-
-                                if ($stock) {
-                                    if ($productId !== 0) {
-                                        // Get the products array (since it is cast to an array in the model)
-                                        $products = $stock->products;
-
-                                        // Find the product with the given product_id
-                                        $product = collect($products)->firstWhere('product_id', $productId);
-
-                                        if ($product) {
-                                            if ($product['quantity'] > 0) {
-                                                // Get the stock quantity of the product
-                                                return "Stock available: " . number_format($product['quantity']) . " pis"; // Show the stock quantity
-                                            }
-                                        }
-                                    }
-                                }else{
-                                    if ($houseId > 0){
-                                        // If no stock today, fetch last available stock
-                                        $lastStock = Stock::where('house_id', $houseId)
-                                            ->latest('created_at')
-                                            ->first();
-                                        if (!$lastStock){
-                                            // Send notification
-                                            Notification::make()
-                                                ->title('Warning')
-                                                ->body('No stock found for this house.')
-                                                ->warning()
-                                                ->persistent()
-                                                ->send();
-                                        }
-
-                                        if ($productId > 0) {
-                                            // Get the products array (since it is cast to an array in the model)
-                                            $products = $lastStock->products ?? [];
-
-                                            // Find the product with the given product_id
-                                            $product = collect($products)->firstWhere('product_id', $productId);
-
-                                            if ($product) {
-                                                if ($product['quantity'] > 0) {
-                                                    // Get the stock quantity of the product
-                                                    return "Stock available: " . number_format($product['quantity']) . " pis"; // Show the stock quantity
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            })
                             ->afterStateUpdated(function(Get $get, Set $set){
                                 $productId = intval($get('product_id'));
                                 $houseId = intval($get('../../house_id'));
@@ -183,27 +125,6 @@ class RsoStockResource extends Resource
                                 }
 
                             })
-                            ->rules([
-                                function (Get $get, Set $set) {
-                                    return function (string $attribute, $value, Closure $fail) use ($get, $set) {
-                                        $productId = $get('product_id');
-                                        $houseId = $get('../../house_id');
-
-                                        // স্টক খুঁজে বের করা
-                                        $stock = Stock::where('house_id', $houseId)->first();
-
-                                        if ($stock) {
-                                            $products = $stock->products;
-                                            $product = collect($products)->firstWhere('product_id', $productId);
-
-                                            if (!$product)
-                                            {
-                                                $fail("Product not found in stock");
-                                            }
-                                        }
-                                    };
-                                }
-                            ])
                             ->options(fn() => Product::where('status','active')->pluck('code','id')),
 
                         TextInput::make('quantity')
@@ -271,35 +192,7 @@ class RsoStockResource extends Resource
                                         }
                                     }
                                 }
-                            })
-                            ->rules([
-                                function (Get $get) {
-                                    return function (string $attribute, $value, Closure $fail) use ($get) {
-                                        $productId = $get('product_id');
-                                        $houseId = $get('../../house_id');
-
-                                        // স্টক খুঁজে বের করা
-                                        $stock = Stock::where('house_id', $houseId)->first();
-
-                                        if ($stock) {
-                                            $products = $stock->products;
-                                            $product = collect($products)->firstWhere('product_id', $productId);
-                                            if ($product) {
-                                                $maxStock = $product['quantity'];
-
-                                                // ✅ যদি quantity 0 হয়, সাবমিট ব্লক হবে
-                                                if ($value == 0) {
-                                                    $fail("০ গ্রহণযোগ্য নয়। অন্তত ১টি দিতে হবে।");
-                                                }
-
-                                                if ($value > $maxStock) {
-                                                    $fail("আপনার পর্যাপ্ত স্টক নেই! সর্বোচ্চ {$maxStock} পিস ইনপুট দিতে পারবেন।");
-                                                }
-                                            }
-                                        }
-                                    };
-                                }
-                            ]),
+                            }),
 
                         Hidden::make('lifting_price'),
                         Hidden::make('price'),
@@ -316,6 +209,7 @@ class RsoStockResource extends Resource
                     ->sortable(),
                 TextColumn::make('rso.name')
                     ->description(fn(RsoStock $rsoStock): string => $rsoStock->rso->itop_number)
+                    ->searchable()
                     ->sortable(),
                 TextColumn::make('itopup')
                     ->numeric()
@@ -327,15 +221,14 @@ class RsoStockResource extends Resource
                 TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
-                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
             ])
             ->filters([
                 //
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+//                Tables\Actions\ViewAction::make(),
+//                Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

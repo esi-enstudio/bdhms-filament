@@ -25,6 +25,7 @@ use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Illuminate\Database\Eloquent\Model;
@@ -263,20 +264,20 @@ class RsoSalesResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('house_id')
+                TextColumn::make('house.name')
+                    ->description(fn(RsoSales $rsoSales): string => $rsoSales->house->code)
+                    ->sortable(),
+                TextColumn::make('rso.name')
+                    ->description(fn(RsoSales $rsoSales): string => $rsoSales->rso->itop_number)
+                    ->sortable(),
+                TextColumn::make('itopup')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('rso_id')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('itopup')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
