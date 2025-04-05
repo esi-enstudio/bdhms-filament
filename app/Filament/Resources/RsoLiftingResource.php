@@ -322,7 +322,7 @@ class RsoLiftingResource extends Resource
             ->groupBy('category')
             ->map(function ($items){
                 return $items->sum(function ($item){
-                    return $item['quantity'] * $item['lifting_price'];
+                    return intval($item['quantity']) * $item['lifting_price'];
                 });
             });
 
