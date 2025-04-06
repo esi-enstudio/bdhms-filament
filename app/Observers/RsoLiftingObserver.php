@@ -84,9 +84,6 @@ class RsoLiftingObserver
 
                     // 3. নতুন স্টক থেকে পূর্বের লিফটিং বাদ দিন (getOriginal() ব্যবহার করে)
                     $this->subtractOriginalLifting($todayStock, $original);
-
-                    // 4. নতুন স্টকে আপডেট করা লিফটিং যোগ করুন
-                    $this->updateStock($todayStock, $lifting);
                 } else {
                     // কোনো স্টক না থাকলে নতুন তৈরি করুন
                     $todayStock = new RsoStock();
@@ -94,9 +91,14 @@ class RsoLiftingObserver
                     $todayStock->products = [];
                     $todayStock->itopup = null;
                     $todayStock->save();
-                    $this->updateStock($todayStock, $lifting);
                 }
+
+                // 4. নতুন স্টকে আপডেট করা লিফটিং যোগ করুন
+                $this->updateStock($todayStock, $lifting);
             } else {
+                // 3. নতুন স্টক থেকে পূর্বের লিফটিং বাদ দিন (getOriginal() ব্যবহার করে)
+                $this->subtractOriginalLifting($todayStock, $original);
+
                 // আজকের স্টক থাকলে শুধু আপডেট করুন
                 $this->updateStock($todayStock, $lifting);
             }
@@ -111,7 +113,11 @@ class RsoLiftingObserver
      */
     public function deleted(RsoLifting $lifting): void
     {
+        // 1. সংশ্লিষ্ট RSO স্টক থেকে লিফটিং বাদ দিন
+        $this->revertLiftingFromRsoStock($lifting);
 
+        // 2. মূল Stock এ লিফটিং ফিরিয়ে যোগ করুন
+        $this->returnLiftingToMainStock($lifting);
     }
 
     /**
@@ -268,6 +274,83 @@ class RsoLiftingObserver
             }
             if (isset($lifting->itopup)) {
                 $stock->itopup = ($stock->itopup ?? 0) - $lifting->itopup;
+            }
+
+            $stock->save();
+        }
+    }
+
+    protected function revertLiftingFromRsoStock($lifting): void
+    {
+        $rsoId = $lifting->rso_id;
+//        $liftingDate = Carbon::parse($lifting->created_at)->toDateString();
+
+        // যে তারিখে লিফটিং করা হয়েছিল সেই তারিখের স্টক খুঁজুন
+        $rsoStock = RsoStock::where('rso_id', $rsoId)
+            ->latest('created_at')
+            ->first();
+
+        if ($rsoStock) {
+            // প্রোডাক্ট বাদ দিন
+            $currentProducts = $rsoStock->products ?? [];
+            $liftingProducts = $lifting->products ?? [];
+
+            foreach ($liftingProducts as $product) {
+                foreach ($currentProducts as &$currentProduct) {
+                    if ($currentProduct['product_id'] == $product['product_id']) {
+                        $currentProduct['quantity'] -= $product['quantity'];
+                        break;
+                    }
+                }
+            }
+
+            $rsoStock->products = array_values(array_filter($currentProducts, function($item) {
+                return isset($item['quantity']) && $item['quantity'] > 0;
+            }));
+
+            // itopup বাদ দিন
+            if ($lifting->itopup) {
+                $rsoStock->itopup = ($rsoStock->itopup ?? 0) - $lifting->itopup;
+            }
+
+            $rsoStock->save();
+
+            // যদি স্টক সম্পূর্ণ শূন্য হয়ে যায়, তাহলে ডিলিট করুন (ঐচ্ছিক)
+            if (empty($rsoStock->products) && ($rsoStock->itopup === null || $rsoStock->itopup <= 0)) {
+                $rsoStock->delete();
+            }
+        }
+    }
+
+    protected function returnLiftingToMainStock($lifting): void
+    {
+        $stock = Stock::first();
+
+        if ($stock) {
+            // প্রোডাক্ট ফিরিয়ে যোগ করুন
+            $currentProducts = $stock->products ?? [];
+            $liftingProducts = $lifting->products ?? [];
+
+            foreach ($liftingProducts as $product) {
+                $found = false;
+                foreach ($currentProducts as &$currentProduct) {
+                    if ($currentProduct['product_id'] == $product['product_id']) {
+                        $currentProduct['quantity'] += $product['quantity'];
+                        $found = true;
+                        break;
+                    }
+                }
+
+                if (!$found) {
+                    $currentProducts[] = $product;
+                }
+            }
+
+            $stock->products = $currentProducts;
+
+            // itopup ফিরিয়ে যোগ করুন
+            if ($lifting->itopup) {
+                $stock->itopup = ($stock->itopup ?? 0) + $lifting->itopup;
             }
 
             $stock->save();
