@@ -35,20 +35,19 @@ class RsoLiftingObserver
             if ($latestStock) {
                 // সর্বশেষ স্টক কপি করে নতুন রেকর্ড তৈরি করুন
                 $newStock = $latestStock->replicate();
-                $newStock->save(); // নতুন created_at স্বয়ংক্রিয়ভাবে সেট হবে
-
-                $this->updateStock($newStock, $lifting);
             } else {
                 // কোনো স্টক না থাকলে নতুন তৈরি করুন
                 $newStock = new RsoStock();
                 $newStock->house_id = $houseId;
                 $newStock->rso_id = $rsoId;
-                $newStock->products = [];
-                $newStock->itopup = null;
-                $newStock->save();
 
-                $this->updateStock($newStock, $lifting);
+                // শুধুমাত্র itopup থাকলে products সেট করবেন না
+                $newStock->products = !empty($lifting->products) ? $lifting->products : null;
+                $newStock->itopup = null;
             }
+
+            $newStock->save();
+            $this->updateStock($newStock, $lifting);
         }
 
         // মূল Stock থেকে লিফটিং বাদ দিন
@@ -167,23 +166,31 @@ class RsoLiftingObserver
 
     protected function updateStock($stock, $lifting): void
     {
-        $currentProducts = $stock->products ?? [];
-        $liftingProducts = $lifting->products ?? [];
+        // শুধুমাত্র itopup থাকলে products আপডেট করবেন না
+        if (!empty($lifting->products)) {
+            $currentProducts = $stock->products ?? [];
+            $liftingProducts = $lifting->products;
 
-        // প্রোডাক্ট মার্জ করার লজিক
-        foreach ($liftingProducts as $product) {
-            $found = false;
-            foreach ($currentProducts as &$currentProduct) {
-                if ($currentProduct['product_id'] == $product['product_id']) {
-                    $currentProduct['quantity'] += $product['quantity'];
-                    $found = true;
-                    break;
+            foreach ($liftingProducts as $product) {
+                // প্রোডাক্টে null ভ্যালু থাকলে স্কিপ করুন
+                if (empty($product['product_id'])) {
+                    continue;
+                }
+
+                $found = false;
+                foreach ($currentProducts as &$currentProduct) {
+                    if ($currentProduct['product_id'] == $product['product_id']) {
+                        $currentProduct['quantity'] += $product['quantity'];
+                        $found = true;
+                        break;
+                    }
+                }
+
+                if (!$found) {
+                    $currentProducts[] = $product;
                 }
             }
-
-            if (!$found) {
-                $currentProducts[] = $product;
-            }
+            $stock->products = $currentProducts;
         }
 
         // আইটোপ আপডেট (যদি থাকে)
@@ -192,29 +199,34 @@ class RsoLiftingObserver
             $stock->itopup = $currentItopup + $lifting->itopup;
         }
 
-        $stock->products = $currentProducts;
         $stock->save();
     }
 
     protected function removeFromStock($lifting): void
     {
-        $stock = Stock::first(); // আপনার Stock মডেল অনুযায়ী এডজাস্ট করুন
+        $stock = Stock::latest()->first(); // আপনার Stock মডেল অনুযায়ী এডজাস্ট করুন
 
         if ($stock) {
-            $currentProducts = $stock->products ?? [];
-            $liftingProducts = $lifting->products ?? [];
+            // শুধুমাত্র products থাকলে বাদ দিন
+            if (!empty($lifting->products)) {
+                $currentProducts = $stock->products ?? [];
+                $liftingProducts = $lifting->products ?? [];
 
-            // লিফট করা প্রোডাক্ট বাদ দিন
-            foreach ($liftingProducts as $product) {
-                foreach ($currentProducts as &$currentProduct) {
-                    if ($currentProduct['product_id'] == $product['product_id']) {
-                        $currentProduct['quantity'] -= $product['quantity'];
-                        break;
+                foreach ($liftingProducts as $product) {
+                    // প্রোডাক্টে null ভ্যালু থাকলে স্কিপ করুন
+                    if (empty($product['product_id'])) {
+                        continue;
+                    }
+
+                    foreach ($currentProducts as &$currentProduct) {
+                        if ($currentProduct['product_id'] == $product['product_id']) {
+                            $currentProduct['quantity'] -= $product['quantity'];
+                            break;
+                        }
                     }
                 }
+                $stock->products = $currentProducts;
             }
-
-            $stock->products = $currentProducts;
 
             // আইটোপ বাদ দিন (যদি থাকে)
             if ($lifting->itopup) {
@@ -228,7 +240,7 @@ class RsoLiftingObserver
 
     protected function updateMainStock($lifting, array $original): void
     {
-        $stock = Stock::first();
+        $stock = Stock::latest()->first();
 
         if ($stock) {
             $currentProducts = $stock->products ?? [];
@@ -283,7 +295,6 @@ class RsoLiftingObserver
     protected function revertLiftingFromRsoStock($lifting): void
     {
         $rsoId = $lifting->rso_id;
-//        $liftingDate = Carbon::parse($lifting->created_at)->toDateString();
 
         // যে তারিখে লিফটিং করা হয়েছিল সেই তারিখের স্টক খুঁজুন
         $rsoStock = RsoStock::where('rso_id', $rsoId)
@@ -324,7 +335,7 @@ class RsoLiftingObserver
 
     protected function returnLiftingToMainStock($lifting): void
     {
-        $stock = Stock::first();
+        $stock = Stock::latest()->first();
 
         if ($stock) {
             // প্রোডাক্ট ফিরিয়ে যোগ করুন

@@ -76,6 +76,16 @@ class RsoLiftingResource extends Resource
                                     ),
 
                                 TextInput::make('itopup')
+                                    ->required(function (Get $get): bool {
+                                        // Check if any product in the repeater has been selected
+                                        $products = $get('products') ?? [];
+                                        foreach ($products as $product) {
+                                            if (!empty($product['product_id'])) {
+                                                return false; // Not required if any product is selected
+                                            }
+                                        }
+                                        return true; // Required if no products are selected
+                                    })
                                     ->numeric(),
                             ]),
 
@@ -91,7 +101,6 @@ class RsoLiftingResource extends Resource
                                 Select::make('product_id')
                                     ->label('Name')
                                     ->live()
-                                    ->required()
                                     ->afterStateUpdated(function(Get $get, Set $set){
                                         $productId = intval($get('product_id'));
 
@@ -104,21 +113,13 @@ class RsoLiftingResource extends Resource
                                             $set('sub_category', $product->sub_category);
                                             $set('lifting_price', $product->lifting_price);
                                             $set('price', $product->price);
-                                        }else{
-                                            // Send notification
-                                            Notification::make()
-                                                ->title('Warning')
-                                                ->body('Please select a product.')
-                                                ->warning()
-                                                ->persistent()
-                                                ->send();
                                         }
                                     })
                                     ->options(fn() => Product::where('status','active')->pluck('code','id')),
 
                                 TextInput::make('quantity')
                                     ->numeric()
-                                    ->required()
+                                    ->required(fn(callable $get): bool => intval($get('product_id')) !== 0)
                                     ->live(onBlur:true),
 
                                 Hidden::make('lifting_price'),
@@ -232,6 +233,7 @@ class RsoLiftingResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultPaginationPageOption(5)
             ->filters([
                 //
             ])
@@ -271,7 +273,7 @@ class RsoLiftingResource extends Resource
     public static function getCurrentStockData($stock, string $html): string
     {
         foreach ($stock->products as $item) {
-            $data = "<strong>" . Product::firstWhere('id', $item['product_id'])->code . "</strong>";
+            $data = "<strong>" . optional(Product::firstWhere('id', $item['product_id']))->code . "</strong>";
             $data .= ' => ';
             $data .= number_format($item['quantity']) . ' pcs, ';
             $data .= '<br>';

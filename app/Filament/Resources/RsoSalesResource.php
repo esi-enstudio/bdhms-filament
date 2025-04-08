@@ -68,7 +68,7 @@ class RsoSalesResource extends Resource
                                 ->options(fn(Get $get, ?Model $record) => Rso::query()
                                     ->where('status', 'active')
                                     ->where('house_id', $get('house_id'))
-                                    ->whereNotIn('id', RsoSales::query()->whereNotNull('rso_id')->pluck('rso_id'))
+                                    ->whereNotIn('id', RsoSales::query()->whereDate('created_at', Carbon::today()->toDateString())->whereNotNull('rso_id')->pluck('rso_id'))
                                     ->when($record, fn($query) => $query->orWhere('id', $record->rso_id))
                                     ->select('id','itop_number','name')
                                     ->get()
@@ -77,12 +77,10 @@ class RsoSalesResource extends Resource
                                     })
                                 )
                                 ->afterStateUpdated(function (Get $get, Set $set, ?string $state){
-                                    $houseId = intval($get('house_id'));
                                     $rsoId = intval($state);
 
                                     // ✅ RSO স্টক চেক করুন
-                                    $rsoStock = RsoStock::where('house_id', $houseId)
-                                        ->where('rso_id', $rsoId)
+                                    $rsoStock = RsoStock::where('rso_id', $rsoId)
                                         ->latest()
                                         ->first();
 
@@ -111,7 +109,6 @@ class RsoSalesResource extends Resource
                                 Select::make('product_id')
                                     ->label('Name')
                                     ->live()
-                                    ->required()
                                     ->options(fn() => Product::where('status','active')->pluck('code','id'))
                                     ->afterStateUpdated(function(Get $get, Set $set, ?string $state){
                                         $productId = intval($state);
@@ -119,6 +116,7 @@ class RsoSalesResource extends Resource
                                         $rsoId = intval($get('../../rso_id'));
 
                                         if (!$productId || !$houseId || !$rsoId) {
+                                            $set('rate', '');
                                             return;
                                         }
 
@@ -155,9 +153,10 @@ class RsoSalesResource extends Resource
                                                 // ✅ প্রোডাক্ট ডাটা সেট করুন
                                                 $product = Product::find($productId);
 
-                                                $set('rate', $product->lifting_price);
+                                                $set('rate', $product->retailer_price);
                                                 $set('category', $product->category);
                                                 $set('sub_category', $product->sub_category);
+                                                $set('retailer_price', $product->retailer_price);
                                                 $set('lifting_price', $product->lifting_price);
                                                 $set('price', $product->price);
                                             }
@@ -166,45 +165,95 @@ class RsoSalesResource extends Resource
 
                                 TextInput::make('rate')
                                     ->live(onBlur: true)
-                                    ->numeric()
-                                    ->required(),
+                                    ->required(fn(callable $get): bool => intval($get('product_id')) !== 0)
+                                    ->numeric(),
 
                                 TextInput::make('quantity')
                                     ->numeric()
-                                    ->required()
+                                    ->required(fn(callable $get): bool => intval($get('product_id')) !== 0)
                                     ->live(onBlur:true)
                                     ->afterStateUpdated(function (Get $get, Set $set){
                                         $productId = intval($get('product_id'));
-                                        $houseId = intval($get('../../house_id'));
                                         $rsoId = intval($get('../../rso_id'));
                                         $qty = intval($get('quantity'));
 
                                         // ✅ RSO স্টক চেক করুন
-                                        $rsoStock = RsoStock::where('house_id', $houseId)
-                                            ->where('rso_id', $rsoId)
-                                            ->latest()
-                                            ->first();
+                                        $rsoStock = RsoStock::where('rso_id', $rsoId)->latest()->first();
 
-                                        $stockQty = collect($rsoStock->products)
-                                            ->firstWhere('product_id', $productId)['quantity'] ?? 0;
-
-                                        if($qty > $stockQty)
+                                        if ($rsoStock)
                                         {
-                                            $set('quantity', $stockQty);
+                                            $stockQty = collect($rsoStock->products)->firstWhere('product_id', $productId)['quantity'] ?? 0;
 
-                                            Notification::make()
-                                                ->title('Stock Limit Exceeded')
-                                                ->body("আপনার চাহিদার পরিমাণ স্টকের চেয়ে বেশি। স্টকে থাকা পরিমাণ সেট করা হয়েছে ({$stockQty})।")
-                                                ->warning()
-                                                ->send();
+                                            if($qty > $stockQty)
+                                            {
+                                                $set('quantity', $stockQty);
+
+                                                Notification::make()
+                                                    ->title('Stock Limit Exceeded')
+                                                    ->body("আপনার চাহিদার পরিমাণ স্টকে নেই। স্টকে থাকা পরিমাণ সেট করা হয়েছে ({$stockQty}) পিস।")
+                                                    ->warning()
+                                                    ->send();
+                                            }
                                         }
                                     }),
 
+                                Hidden::make('retailer_price'),
                                 Hidden::make('lifting_price'),
                                 Hidden::make('price'),
                             ]),
 
                         TextInput::make('itopup')
+                            ->live(onBlur: true)
+                            ->numeric()
+                            ->helperText(function (Get $get, $state){
+                                $saleItopup = intval($state);
+                                $rsoId = intval($get('rso_id'));
+
+                                $stock = RsoStock::where('rso_id', $rsoId)
+                                    ->latest()
+                                    ->first();
+
+                                if ($stock){
+                                    return 'Return Itopup: ' . number_format($stock->itopup - $saleItopup) . ' Tk';
+                                }
+
+                                return false;
+                            })
+                            ->required(function (Get $get): bool {
+                                // Check if any product in the repeater has been selected
+                                $products = $get('products') ?? [];
+                                foreach ($products as $product) {
+                                    if (!empty($product['product_id'])) {
+                                        return false; // Not required if any product is selected
+                                    }
+                                }
+                                return true; // Required if no products are selected
+                            })
+                            ->afterStateUpdated(function (Get $get, Set $set, ?string $state){
+                                $rsoId = intval($get('rso_id'));
+                                $itopAmount = intval($state);
+
+                                // ✅ RSO স্টক চেক করুন
+                                $rsoStock = RsoStock::where('rso_id', $rsoId)
+                                    ->latest()
+                                    ->first();
+
+                                if ($rsoStock && $itopAmount > $rsoStock->itopup)
+                                {
+                                    // ✅ Repeater-এর products ফিল্ড খালি করে দিন
+                                    $set('itopup', '');
+
+                                    Notification::make()
+                                        ->title('Itopup Input Error')
+                                        ->body('আপনার চাহিদার পরিমাণ আইটপ স্টকে নেই।')
+                                        ->danger()
+                                        ->send();
+                                }
+                            }),
+
+                        TextInput::make('ta')
+                            ->label('Transportation Allowance (TA)')
+                            ->live(onBlur: true)
                             ->numeric(),
                     ]),
 
@@ -219,7 +268,6 @@ class RsoSalesResource extends Resource
 
                                         $houseId = intval($get('house_id'));
                                         $rsoId = intval($get('rso_id'));
-                                        $today = Carbon::today()->toDateString();
 
                                         // Get today's stock
                                         $stock = RsoStock::where('house_id', $houseId)
@@ -231,7 +279,7 @@ class RsoSalesResource extends Resource
 
                                         // If stock exists, loop through the products
                                         if ($stock && $stock->products) {
-                                            $html = self::getHtml($stock, $html);
+                                            $html = self::getCurrentStock($stock, $html);
                                         } else {
 
                                             // Get last stock
@@ -242,7 +290,7 @@ class RsoSalesResource extends Resource
 
                                             // If stock exists, loop through the products
                                             if ($lastStock && $lastStock->products) {
-                                                $html = self::getHtml($lastStock, $html);
+                                                $html = self::getCurrentStock($lastStock, $html);
                                             }
 
                                             return new HtmlString($html);
@@ -252,9 +300,22 @@ class RsoSalesResource extends Resource
                                     })
                             ]),
 
-                        Section::make()
+                        Section::make('Overview')
                             ->schema([
+                                Placeholder::make('Overview')
+                                    ->label('')
+                                    ->content(function (Get $get){
+                                        $products = collect($get('products'));
+                                        $itopup = $get('itopup');
+                                        $taAmount = $get('ta');
+                                        $html = '';
 
+                                        if ($products->isNotEmpty() && $products->pluck('quantity') != ''){
+                                            $html = self::getOverviewData($products, $itopup, $taAmount, $html);
+                                        }
+
+                                        return new HtmlString($html);
+                                    }),
                             ]),
                     ]),
             ]);
@@ -275,13 +336,14 @@ class RsoSalesResource extends Resource
                     ->sortable(),
                 TextColumn::make('created_at')
                     ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
+                    ->sortable(),
                 TextColumn::make('updated_at')
                     ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
+                    ->sortable(),
             ])
+            ->defaultPaginationPageOption(5)
             ->filters([
                 //
             ])
@@ -323,10 +385,14 @@ class RsoSalesResource extends Resource
      * @param string $html
      * @return string
      */
-    public static function getHtml($stock, string $html): string
+    public static function getCurrentStock($stock, string $html): string
     {
+        $html = "<strong>Itopup: ".number_format($stock->itopup)."</strong>";
+        $html .= '<br>';
+        $html .= '<br>';
+
         foreach ($stock->products as $item) {
-            $data = "<strong>" . Product::firstWhere('id', $item['product_id'])->code . "</strong>";
+            $data = "<strong>" . optional(Product::firstWhere('id', $item['product_id']))->code . "</strong>";
             $data .= ' => ';
             $data .= number_format($item['quantity']) . ' pcs, ';
             $data .= '<br>';
@@ -352,6 +418,69 @@ class RsoSalesResource extends Resource
         $html .= '<hr>';
         $html .= '<strong>Grand Total: </strong>'.number_format($categoryWiseTotals->sum()).' Tk';
 
+
+        return $html;
+    }
+
+    /**
+     * @param $products
+     * @param $itopup
+     * @param $taAmount
+     * @param string $html
+     * @return string
+     */
+    public static function getOverviewData($products, $itopup, $taAmount, string $html): string
+    {
+        $itopup = intval($itopup);
+
+        foreach ($products as $item) {
+            if ($item['product_id'] && $item['quantity']){
+                $data = "<strong>" . optional(Product::firstWhere('id', $item['product_id']))->code . "</strong>";
+                $data .= ' => ';
+                $data .= number_format($item['quantity']);
+                $data .= ' x ';
+                $data .= $item['rate'];
+                $data .= ' = ';
+                $data .= number_format(intval($item['quantity']) * $item['rate']) . ' Tk';
+                $data .= '<br>';
+
+                $html .= $data;
+            }
+        }
+
+        if ($itopup > 0)
+        {
+            $html .= '<hr>';
+            $html .= '<strong>Itopup : </strong>' . number_format($itopup);
+            $html .= ' - ';
+            $html .= ' 2.75% ';
+            $html .= ' = ';
+            $html .= number_format($itopup - ($itopup * 2.75 / 100)) . ' Tk';
+        }
+
+        $totalItopAmount = round($itopup - ($itopup * 2.75 / 100));
+
+        if ($taAmount > 0)
+        {
+            $html .= '<hr>';
+            $html .= '<strong>TA : </strong>' . number_format($taAmount) . ' Tk';
+        }
+
+
+        $categoryWiseTotals = $products
+            ->groupBy('category')
+            ->map(function ($items){
+                return $items->sum(function ($item){
+                    return intval($item['quantity']) * $item['rate'];
+                });
+            });
+
+        $totalProductAmount = $categoryWiseTotals->sum();
+
+        if ($totalProductAmount > 0){
+            $html .= '<hr>';
+            $html .= '<strong>Total Cash: </strong>'.number_format(($totalProductAmount + $totalItopAmount) - intval($taAmount)).' Tk';
+        }
 
         return $html;
     }

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static whereDate(string $string, string $today)
  * @method static create(array $array)
  * @method static first()
+ * @method static latest()
  */
 class Stock extends Model
 {

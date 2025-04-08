@@ -276,6 +276,7 @@ class SalesResource extends Resource
                     ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultPaginationPageOption(5)
             ->filters([
                 //
             ])

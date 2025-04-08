@@ -223,6 +223,7 @@ class RsoStockResource extends Resource
                     ->sortable()
                     ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
             ])
+            ->defaultPaginationPageOption(5)
             ->filters([
                 //
             ])
