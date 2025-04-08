@@ -68,8 +68,6 @@ class RsoSalesResource extends Resource
                                 ->options(fn(Get $get, ?Model $record) => Rso::query()
                                     ->where('status', 'active')
                                     ->where('house_id', $get('house_id'))
-                                    ->whereNotIn('id', RsoSales::query()->whereDate('created_at', Carbon::today()->toDateString())->whereNotNull('rso_id')->pluck('rso_id'))
-                                    ->when($record, fn($query) => $query->orWhere('id', $record->rso_id))
                                     ->select('id','itop_number','name')
                                     ->get()
                                     ->mapWithKeys(function ($item) {
@@ -249,12 +247,17 @@ class RsoSalesResource extends Resource
                                         ->danger()
                                         ->send();
                                 }
+
+                                // ✅ Repeater-এর products ফিল্ড খালি করে দিন
+                                $set('return_itopup', ($rsoStock->itopup - $itopAmount));
                             }),
 
                         TextInput::make('ta')
                             ->label('Transportation Allowance (TA)')
                             ->live(onBlur: true)
                             ->numeric(),
+
+                        Hidden::make('return_itopup'),
                     ]),
 
                 Group::make()
