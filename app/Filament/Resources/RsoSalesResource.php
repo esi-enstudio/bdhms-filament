@@ -204,28 +204,12 @@ class RsoSalesResource extends Resource
                             ->live(onBlur: true)
                             ->numeric()
                             ->helperText(function (Get $get, $state){
-                                $saleItopup = intval($state);
-                                $rsoId = intval($get('rso_id'));
-
-                                $stock = RsoStock::where('rso_id', $rsoId)
-                                    ->latest()
-                                    ->first();
-
-                                if ($stock){
-                                    return 'Return Itopup: ' . number_format($stock->itopup - $saleItopup) . ' Tk';
+                                if (!$state)
+                                {
+                                    return null;
+                                }else{
+                                    return 'Return Itopup: ' . number_format($get('return_itopup')) . ' Tk';
                                 }
-
-                                return false;
-                            })
-                            ->required(function (Get $get): bool {
-                                // Check if any product in the repeater has been selected
-                                $products = $get('products') ?? [];
-                                foreach ($products as $product) {
-                                    if (!empty($product['product_id'])) {
-                                        return false; // Not required if any product is selected
-                                    }
-                                }
-                                return true; // Required if no products are selected
                             })
                             ->afterStateUpdated(function (Get $get, Set $set, ?string $state){
                                 $rsoId = intval($get('rso_id'));
@@ -255,6 +239,7 @@ class RsoSalesResource extends Resource
                         TextInput::make('ta')
                             ->label('Transportation Allowance (TA)')
                             ->live(onBlur: true)
+                            ->required()
                             ->numeric(),
 
                         Hidden::make('return_itopup'),
@@ -474,7 +459,7 @@ class RsoSalesResource extends Resource
             ->groupBy('category')
             ->map(function ($items){
                 return $items->sum(function ($item){
-                    return intval($item['quantity']) * $item['rate'];
+                    return intval($item['quantity']) * (empty($item['rate']) ?? 0);
                 });
             });
 

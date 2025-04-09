@@ -150,10 +150,11 @@ class RsoLiftingResource extends Resource
                                     ->label('')
                                     ->content(function (Get $get){
                                         $products = collect($get('products'));
+                                        $itopup = $get('itopup');
                                         $html = '';
 
                                         if ($products->isNotEmpty() && $products->pluck('quantity') != ''){
-                                            $html = self::getOverviewData($products, $html);
+                                            $html = self::getOverviewData($products, $itopup, $html);
                                         }
 
                                         return new HtmlString($html);
@@ -272,6 +273,10 @@ class RsoLiftingResource extends Resource
      */
     public static function getCurrentStockData($stock, string $html): string
     {
+        $html = "<strong>Itopup: ".number_format($stock->itopup)."</strong>";
+        $html .= '<br>';
+        $html .= '<br>';
+
         foreach ($stock->products as $item) {
             $data = "<strong>" . optional(Product::firstWhere('id', $item['product_id']))->code . "</strong>";
             $data .= ' => ';
@@ -304,11 +309,19 @@ class RsoLiftingResource extends Resource
 
     /**
      * @param $products
+     * @param $itopup
      * @param string $html
      * @return string
      */
-    public static function getOverviewData($products, string $html): string
+    public static function getOverviewData($products, $itopup, string $html): string
     {
+        if ($itopup)
+        {
+            $html = "<strong>Itopup: ".number_format($itopup)."</strong>";
+            $html .= '<br>';
+            $html .= '<br>';
+        }
+
         foreach ($products as $item) {
             if ($item['product_id'] && $item['quantity']){
                 $data = "<strong>" . optional(Product::firstWhere('id', $item['product_id']))->code . "</strong>";

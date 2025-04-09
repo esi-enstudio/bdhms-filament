@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property mixed $return_itopup
+ * @property mixed $itopup
+ * @property mixed $products
+ */
 class RsoSales extends Model
 {
     protected $guarded = [];

@@ -40,13 +40,16 @@ class RsoLiftingObserver
                 $newStock = new RsoStock();
                 $newStock->house_id = $houseId;
                 $newStock->rso_id = $rsoId;
-
                 // শুধুমাত্র itopup থাকলে products সেট করবেন না
-                $newStock->products = !empty($lifting->products) ? $lifting->products : null;
-                $newStock->itopup = null;
+                $newStock->products = !empty($lifting->products) && collect($lifting->products)->contains('product_id')
+                    ? $lifting->products
+                    : [];
+                $newStock->itopup = 0;
             }
 
             $newStock->save();
+
+            // লিফটিং করা প্রোডাক্টগুলো স্টকে যোগ করা হবে।
             $this->updateStock($newStock, $lifting);
         }
 
@@ -171,25 +174,27 @@ class RsoLiftingObserver
             $currentProducts = $stock->products ?? [];
             $liftingProducts = $lifting->products;
 
-            foreach ($liftingProducts as $product) {
+            foreach ($liftingProducts as $liftingProduct) {
+
                 // প্রোডাক্টে null ভ্যালু থাকলে স্কিপ করুন
-                if (empty($product['product_id'])) {
+                if (empty($liftingProduct['product_id'])) {
                     continue;
                 }
 
                 $found = false;
                 foreach ($currentProducts as &$currentProduct) {
-                    if ($currentProduct['product_id'] == $product['product_id']) {
-                        $currentProduct['quantity'] += $product['quantity'];
+                    if ($currentProduct['product_id'] == $liftingProduct['product_id']) {
+                        $currentProduct['quantity'] += $liftingProduct['quantity'];
                         $found = true;
                         break;
                     }
                 }
 
                 if (!$found) {
-                    $currentProducts[] = $product;
+                    $currentProducts[] = $liftingProduct;
                 }
             }
+
             $stock->products = $currentProducts;
         }
 

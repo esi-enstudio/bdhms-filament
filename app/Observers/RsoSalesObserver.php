@@ -13,53 +13,6 @@ class RsoSalesObserver
     /**
      * Handle the RsoSales "created" event.
      */
-//    public function created(RsoSales $rsoSales): void
-//    {
-//        // সংশ্লিষ্ট RSO এর জন্য স্টক খুঁজে বের করা
-//        $rsoStock = RsoStock::where('rso_id', $rsoSales->rso_id)
-//            ->latest()
-//            ->first();
-//
-//        if ($rsoStock) {
-//            // প্রোডাক্ট স্টক আপডেট (পূর্বের লজিক)
-//            $stockProducts = $rsoStock->products;
-//            $saleProducts = $rsoSales->products;
-//
-//            // প্রতিটি সেল প্রোডাক্টের জন্য স্টক আপডেট করা
-//            foreach ($saleProducts as $saleProduct) {
-//                $found = false;
-//
-//                // স্টকের প্রতিটি প্রোডাক্ট চেক করা
-//                foreach ($stockProducts as &$stockProduct) {
-//                    // যদি প্রোডাক্ট আইডি এবং রেট মিলে যায়
-//                    if ($stockProduct['product_id'] == $saleProduct['product_id']) {
-//                        $stockProduct['quantity'] -= $saleProduct['quantity'];
-//                        $found = true;
-//                        break;
-//                    }
-//                }
-//
-//                // যদি ম্যাচ না খুঁজে পাওয়া যায় (নতুন রেটে প্রোডাক্ট)
-//                if (!$found) {
-//                    // নতুন এন্ট্রি যোগ করার পরিবর্তে, আমরা শুধু কোয়ান্টিটি নেগেটিভ করবো
-//                    // অথবা আপনি চাইলে নতুন এন্ট্রি যোগ করতে পারেন
-//                    $saleProduct['quantity'] = -$saleProduct['quantity'];
-//                    $stockProducts[] = $saleProduct;
-//                }
-//            }
-//
-//            // স্টক আপডেট করা (অটোমেটিক্যালি JSON এ কনভার্ট হবে)
-//            $rsoStock->products = $stockProducts;
-//
-//            // আইটপআপ আপডেট করা (যদি থাকে)
-//            if (!is_null($rsoSales->itopup) && !is_null($rsoStock->itopup)) {
-//                $rsoStock->itopup -= $rsoSales->itopup;
-//            }
-//        }
-//        $rsoStock->products = $stockProducts;
-//
-//    }
-
     public function created(RsoSales $rsoSales): void
     {
         // সংশ্লিষ্ট RSO এর জন্য স্টক খুঁজে বের করা
@@ -92,13 +45,14 @@ class RsoSalesObserver
             if (!is_null($rsoSales->itopup) && $rsoSales->itopup > 0) {
                 $currentStockItopup = $rsoStock->itopup ?? 0;
                 $saleItopup = $rsoSales->itopup;
-//dd('Current Stock Itop: '.$currentStockItopup.'/ Rso sale itop: '.$saleItopup);
+
                 if ($currentStockItopup >= $saleItopup) {
                     // Case 1: স্টকে পর্যাপ্ত itopup নেই, বাকিটা মূল স্টক থেকে নেওয়া
                     $remainingItopup = $currentStockItopup - $saleItopup;
-//dd($remainingItopup);
+
                     // মূল Stock মডেলে অবশিষ্ট itopup যোগ
                     $mainStock = Stock::latest()->first(); // অথবা আপনার লজিক অনুযায়ী স্টক খুঁজে নিন
+
                     if ($mainStock) {
                         $mainStock->itopup += $remainingItopup;
                         $mainStock->save();
@@ -189,7 +143,16 @@ class RsoSalesObserver
 
             // আইটপআপ ফেরত যোগ
             if (!is_null($rsoSales->itopup)) {
-                $rsoStock->itopup += $rsoSales->itopup;
+                $rsoStock->itopup += ($rsoSales->itopup + $rsoSales->return_itopup);
+            }
+
+            if (!is_null($rsoSales->return_itopup)) {
+                $mainStock = Stock::latest()->first();
+
+                if ($mainStock) {
+                    $mainStock->itopup -= $rsoSales->return_itopup;
+                    $mainStock->save();
+                }
             }
 
             $rsoStock->save();
