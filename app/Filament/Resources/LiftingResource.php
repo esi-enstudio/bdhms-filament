@@ -66,6 +66,7 @@ class LiftingResource extends Resource
                                         'no lifting' => 'No Lifting',
                                     ]),
                             ]),
+
                         Section::make()
                         ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                         ->columns(2)
@@ -195,13 +196,15 @@ class LiftingResource extends Resource
                 Group::make()
                     ->columnSpan(1)
                     ->schema([
-                        Section::make('Product\'s Amount')
+                        Section::make('Summary')
                             ->hidden(fn(Get $get) => $get('status') == 'no lifting')
                             ->schema([
                                 Placeholder::make('product_totals')
                                     ->label('')
                                     ->content(function (Get $get) {
                                         $products = collect($get('products'));
+                                        $itopup = $get('itopup');
+                                        $bankDeposit = $get('deposit');
 
                                         // ক্যাটাগরির ভিত্তিতে গ্রুপ করুন
                                         $groupedTotals = $products->groupBy('category')->map(function ($items) {
@@ -224,83 +227,69 @@ class LiftingResource extends Resource
 
                                             if ($liftingTotal < 1){ $html .= ''; break; }
 
-                                            $html .= "<li>{$category} Amount: {$liftingTotal} । {$priceTotal}</li>";
+                                            $html .= "<li>";
+                                            $html .= "<strong>{$category} Amount: </strong>";
+                                            $html .= "{$liftingTotal}";
+                                            $html .= $liftingTotal != $priceTotal ? "। {$priceTotal}" : '';
+                                            $html .= "</li>";
                                         }
+
+                                        $html .= $itopup > 0 ? "<strong>Itopup: </strong>" . number_format($itopup) : '';
+                                        $html .= '<br>';
+                                        $html .= $bankDeposit > 0 ? "<strong>Bank Deposit: </strong>" . number_format($bankDeposit) : '';
+
                                         $html .= '</ul>';
 
                                         return new HtmlString($html);
                                     }),
+                            ]),
 
+//                        Section::make('Predict Quantity')
+//                            ->hidden(fn(Get $get) => $get('status') == 'no lifting')
+//                            ->schema([
 //                                Placeholder::make('product_totals')
-//                                    ->label('Product Amount')
-//                                    ->content(function(Get $get){
-//
+//                                    ->label('')
+//                                    ->content(function (Get $get) {
 //                                        $products = collect($get('products'));
 //
-//                                        $groupedTotals = $products->groupBy('category')->map(function ($items) {
-//                                            return $items->sum(fn($product) => $product['quantity'] * $product['lifting_price']);
+//                                        // deposit খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
+//                                        $depositAmount = !empty($get('deposit')) ? intval($get('deposit')) : 0;
+//
+//                                        // ক্যাটাগরির ভিত্তিতে গ্রুপ করুন
+//                                        $calculateQty = $products->groupBy('category')->map(function ($items) use ($depositAmount) {
+//                                            return $items->sum(function ($product) use ($depositAmount) {
+//                                                // lifting_price ফিল্ডের মান চেক করুন
+//                                                $liftingPrice = $product['lifting_price'] ?? 0;
+//
+//                                                // যদি lifting_price শূন্য হয়, তাহলে 0 রিটার্ন করুন
+//                                                if ($liftingPrice == 0) {
+//                                                    return 0;
+//                                                }
+//
+//                                                // ভাগ করুন এবং রিটার্ন করুন
+//                                                return $depositAmount / $liftingPrice;
+//                                            });
 //                                        });
 //
-//                                        if ($groupedTotals->isEmpty()) {
-//                                            return 'N/A';
+//                                        // যদি কোনো ডেটা না থাকে
+//                                        if ($calculateQty->isEmpty()) {
+//                                            return 'No product selected.';
 //                                        }
 //
+//                                        // HTML কন্টেন্ট তৈরি করুন
 //                                        $html = '<ul>';
-//                                        foreach ($groupedTotals as $subcategory => $total) {
-//                                            $html .= "<li> Total {$subcategory} Amount: " . number_format($total) . "</li>";
+//                                        foreach ($calculateQty as $category => $qty) {
+//                                            $productQty = number_format($qty);
+//
+//                                            if ($productQty < 1){ $html .= ''; break; }
+//
+//                                            $html .= "<li>{$category} Qty: {$productQty}</li>";
 //                                        }
 //                                        $html .= '</ul>';
 //
 //                                        return new HtmlString($html);
 //                                    }),
-                            ]),
-
-                        Section::make('Predict Quantity')
-                            ->hidden(fn(Get $get) => $get('status') == 'no lifting')
-                            ->schema([
-                                Placeholder::make('product_totals')
-                                    ->label('')
-                                    ->content(function (Get $get) {
-                                        $products = collect($get('products'));
-
-                                        // deposit খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
-                                        $depositAmount = !empty($get('deposit')) ? intval($get('deposit')) : 0;
-
-                                        // ক্যাটাগরির ভিত্তিতে গ্রুপ করুন
-                                        $calculateQty = $products->groupBy('category')->map(function ($items) use ($depositAmount) {
-                                            return $items->sum(function ($product) use ($depositAmount) {
-                                                // lifting_price ফিল্ডের মান চেক করুন
-                                                $liftingPrice = $product['lifting_price'] ?? 0;
-
-                                                // যদি lifting_price শূন্য হয়, তাহলে 0 রিটার্ন করুন
-                                                if ($liftingPrice == 0) {
-                                                    return 0;
-                                                }
-
-                                                // ভাগ করুন এবং রিটার্ন করুন
-                                                return $depositAmount / $liftingPrice;
-                                            });
-                                        });
-
-                                        // যদি কোনো ডেটা না থাকে
-                                        if ($calculateQty->isEmpty()) {
-                                            return 'No product selected.';
-                                        }
-
-                                        // HTML কন্টেন্ট তৈরি করুন
-                                        $html = '<ul>';
-                                        foreach ($calculateQty as $category => $qty) {
-                                            $productQty = number_format($qty);
-
-                                            if ($productQty < 1){ $html .= ''; break; }
-
-                                            $html .= "<li>{$category} Qty: {$productQty}</li>";
-                                        }
-                                        $html .= '</ul>';
-
-                                        return new HtmlString($html);
-                                    }),
-                            ]),
+//                            ]),
 
                         Section::make('Stocks')
                             ->visibleOn(['create'])
@@ -313,60 +302,9 @@ class LiftingResource extends Resource
                 ]);
     }
 
-    private static function getStockPreview(?int $houseId): string
-    {
-        if (!$houseId) {
-            return 'No house selected.';
-        }
-
-        $stock = Stock::where('house_id', $houseId)->first();
-
-        if (!$stock || empty($stock->products)) {
-            return 'No stock available for this house.';
-        }
-
-        // Get product names from the database
-        $productIds = collect($stock->products)->pluck('product_id')->unique();
-
-        // Fetch product details from the products table
-        $productDetails = Product::whereIn('id', $productIds)
-        ->get(['id', 'name', 'lifting_price', 'price']) // Ensure these columns exist in your products table
-        ->keyBy('id'); // Index by product ID for easy lookup
-
-        // Group stock by category & sub-category
-        $groupedStock = collect($stock->products)
-        ->groupBy('category')
-        ->map(function ($category, $categoryName) use ($productDetails) {
-            $subCategoryList = $category->groupBy('sub_category')
-                ->map(function ($subCategory, $subCategoryName) use ($productDetails) {
-                    $productsList = $subCategory
-                        ->map(function ($item) use ($productDetails) {
-                            $product = $productDetails[$item['product_id']] ?? null;
-
-                            if (!$product) {
-                                return "Unknown Product (ID: {$item['product_id']}) - Qty: {$item['quantity']}";
-                            }
-
-                            return "<strong>{$product->name}</strong><br>
-                                    Qty: ".number_format($item['quantity'])."<br>
-                                    Price: ".number_format($item['quantity'] * $product->price);
-                        })
-                        ->implode('<br>');
-
-                    return "<em>{$subCategoryName}</em><br>{$productsList}";
-                })
-                ->implode('<br><br>');
-
-                return "<strong>{$categoryName}</strong><br>{$subCategoryList}";
-        })
-        ->implode('<br><br>');
-
-        // Add the itopup value at the top of the output
-        $itopupDisplay = "<strong><h2>Itop-up: " . number_format($stock->itopup) . "</h2></strong><br><br>";
-
-        return $itopupDisplay . $groupedStock;
-    }
-
+    /**
+     * @throws \Exception
+     */
     public static function table(Table $table): Table
     {
         return $table
@@ -455,5 +393,59 @@ class LiftingResource extends Resource
             ->schema([
 
             ]);
+    }
+
+    private static function getStockPreview(?int $houseId): string
+    {
+        if (!$houseId) {
+            return 'No house selected.';
+        }
+
+        $stock = Stock::where('house_id', $houseId)->first();
+
+        if (!$stock || empty($stock->products)) {
+            return 'No stock available for this house.';
+        }
+
+        // Get product names from the database
+        $productIds = collect($stock->products)->pluck('product_id')->unique();
+
+        // Fetch product details from the products table
+        $productDetails = Product::whereIn('id', $productIds)
+            ->get(['id', 'name', 'lifting_price', 'price']) // Ensure these columns exist in your products table
+            ->keyBy('id'); // Index by product ID for easy lookup
+
+        // Group stock by category & sub-category
+        $groupedStock = collect($stock->products)
+            ->groupBy('category')
+            ->map(function ($category, $categoryName) use ($productDetails) {
+                $subCategoryList = $category->groupBy('sub_category')
+                    ->map(function ($subCategory, $subCategoryName) use ($productDetails) {
+                        $productsList = $subCategory
+                            ->map(function ($item) use ($productDetails) {
+                                $product = $productDetails[$item['product_id']] ?? null;
+
+                                if (!$product) {
+                                    return "Unknown Product (ID: {$item['product_id']}) - Qty: {$item['quantity']}";
+                                }
+
+                                return "<strong>{$product->name}</strong><br>
+                                    Qty: ".number_format($item['quantity'])."<br>
+                                    Price: ".number_format($item['quantity'] * $product->price);
+                            })
+                            ->implode('<br>');
+
+                        return "<em>{$subCategoryName}</em><br>{$productsList}";
+                    })
+                    ->implode('<br><br>');
+
+                return "<strong>{$categoryName}</strong><br>{$subCategoryList}";
+            })
+            ->implode('<br><br>');
+
+        // Add the itopup value at the top of the output
+        $itopupDisplay = "<strong><h2>Itop-up: " . number_format($stock->itopup) . "</h2></strong><br><br>";
+
+        return $itopupDisplay . $groupedStock;
     }
 }
