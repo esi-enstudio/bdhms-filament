@@ -429,7 +429,7 @@ class RsoSalesResource extends Resource
                 $data .= ' x ';
                 $data .= $item['rate'];
                 $data .= ' = ';
-                $data .= number_format(intval($item['quantity']) * $item['rate']) . ' Tk';
+                $data .= number_format(intval($item['quantity']) * floatval($item['rate'])) . ' Tk';
                 $data .= '<br>';
 
                 $html .= $data;
@@ -459,7 +459,10 @@ class RsoSalesResource extends Resource
             ->groupBy('category')
             ->map(function ($items){
                 return $items->sum(function ($item){
-                    return intval($item['quantity']) * (empty($item['rate']) ?? 0);
+                    $qty = intval($item['quantity']);
+                    $rate = floatval($item['rate']) ?? 0;
+
+                    return $qty * $rate;
                 });
             });
 

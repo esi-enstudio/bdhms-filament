@@ -3,14 +3,11 @@
 namespace App\Filament\Resources\LiftingResource\Pages;
 
 use App\Filament\Resources\LiftingResource;
-use App\Models\Lifting;
 use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
-use Filament\Support\Enums\IconPosition;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 
 class ListLiftings extends ListRecords
 {
@@ -32,7 +29,7 @@ class ListLiftings extends ListRecords
         return [
             'Today' => Tab::make()
                 ->modifyQueryUsing(fn(Builder $query) => $query->whereDate('created_at', Carbon::today()))
-                ->badge($todayLiftingCount, 'success', IconPosition::Before, icon: 'heroicon-o-check-circle'),
+                ->badge($todayLiftingCount),
 
             'Older' => Tab::make()
                 ->modifyQueryUsing(fn(Builder $query) => $query->whereNot(fn($subQuery) => $subQuery->whereDate('created_at', Carbon::today())))
