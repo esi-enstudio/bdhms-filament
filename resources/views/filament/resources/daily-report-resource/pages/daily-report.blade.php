@@ -1,6 +1,6 @@
 <x-filament-panels::page>
-{{ $rsoSale }}
-    <div class="max-w-6xl mx-auto bg-white shadow-md rounded-lg p-6">
+{{--{{ $rsoSale }}--}}
+    <div class="w-full mx-auto bg-white shadow-md rounded-lg p-6">
         <!-- Header -->
         <div class="flex justify-between items-center mb-4">
             <h1 class="text-2xl font-bold">Patwary Telecom - Daily Summary Sheet</h1>
@@ -30,18 +30,20 @@
                 </thead>
                 <tbody>
                 <!-- Sample Data -->
-                <tr>
-                    <td class="border border-gray-300 px-4 py-2">Akash</td>
-                    <td class="border border-gray-300 px-4 py-2 text-right"></td>
-                    <td class="border border-gray-300 px-4 py-2 text-right"></td>
-                    <td class="border border-gray-300 px-4 py-2 text-right"></td>
-                    <td class="border border-gray-300 px-4 py-2 text-right"></td>
-                    <td class="border border-gray-300 px-4 py-2 text-right"></td>
-                    <td class="border border-gray-300 px-4 py-2 text-right"></td>
-                    <td class="border border-gray-300 px-4 py-2 text-right"></td>
-                    <td class="border border-gray-300 px-4 py-2 text-right"></td>
-                    <td class="border border-gray-300 px-4 py-2 text-right"></td>
-                </tr>
+                @foreach ($rsos as $rso)
+                    <tr>
+                        <td class="border border-gray-300 px-4 py-2">{{ $rso['name'] }}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">{{ number_format($rso['totals']['std'], 2) }}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">{{ number_format($rso['totals']['rbsp'], 2) }}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">{{ number_format($rso['totals']['tk_14'], 2) }}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">{{ number_format($rso['totals']['tk_19'], 2) }}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">{{ number_format($rso['totals']['tk_29_d'], 2) }}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">{{ number_format($rso['totals']['tk_29_m'], 2) }}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">{{ number_format($rso['totals']['tk_69'], 2) }}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">{{ number_format($rso['totals']['i_top_up'], 2) }}</td>
+                        <td class="border border-gray-300 px-4 py-2 text-right">{{ number_format($rso['totals']['amount'], 2) }}</td>
+                    </tr>
+                @endforeach
                 <tr>
                     <td class="border border-gray-300 px-4 py-2">Counter</td>
                     <td class="border border-gray-300 px-4 py-2 text-right"></td>
