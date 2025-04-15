@@ -5,6 +5,7 @@ namespace App\Filament\Resources\DailyReportResource\Pages;
 use App\Filament\Resources\DailyReportResource;
 use App\Models\RsoSales;
 use App\Models\Lifting;
+use App\Models\Stock;
 use Carbon\Carbon;
 use Filament\Resources\Pages\Page;
 use Illuminate\Support\Facades\Log;
@@ -82,14 +83,28 @@ class GenerateReport extends Page
         }
 
         return match (true) {
-            $product['category'] === 'SIM' && $product['sub_category'] === 'DESH' => 'std',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'SWAP' => 'rbsp',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '9' => 'tk_9',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' => 'tk_19',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '20' => 'tk_20',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '29' => 'tk_29_d',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '49' => 'tk_49_d',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '69' => 'tk_69_d',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'DESH' => 'mmst',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'DESH' => 'esimp',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'DUPLICATE' => 'mmsts',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'DUPLICATE' => 'esimup',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'SWAP' => 'sim_swap',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'SWAP' => 'esimswap',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'ESWAP' => 'ev_swap',
+            $product['category'] === 'DEVICE' && $product['sub_category'] === 'WIFI' => 'router_wifi',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '9' => 'scmb_9_voice',
+            $product['category'] === 'SC' && $product['sub_category'] === 'MV' && $product['price'] == '10' => 'mv_10_mv',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '14' => 'scv_14_voice',
+            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '14' => 'scd_14_data',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' => 'scv_19_voice',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' => 'sc_19_voice',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' => 'scv_19_30m_voice',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '20' => 'mv_20_voice',
+            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '29' => 'scd_29_mb500_data',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '29' => 'scv_29_40m_voice',
+            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '29' => 'scd_29_1gb_1day_data',
+            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '49' => 'scd_49_1gb_3day_data',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '50' => 'mv_50_voice',
+            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '69' => 'scd_69_tk_data',
             default => 'unknown_' . md5(json_encode($product)),
         };
     }
@@ -107,13 +122,27 @@ class GenerateReport extends Page
 
         return match (true) {
             $product['category'] === 'SIM' && $product['sub_category'] === 'DESH' => 'STD',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'SWAP' => 'SWAP',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '9' => '9 Tk',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' => '19 Tk',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '20' => '20 Tk',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '29' => '29Tk Data',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '49' => '49Tk Data',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '69' => '69Tk Data',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'DESH' => 'E-SIM-P',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'DUPLICATE' => 'MMSTS',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'DUPLICATE' => 'E-SIM-UP',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'SWAP' => 'SIM SWAP',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'SWAP' => 'E-SIM-SWAP',
+            $product['category'] === 'SIM' && $product['sub_category'] === 'ESWAP' => 'EV SWAP',
+            $product['category'] === 'DEVICE' && $product['sub_category'] === 'WIFI' => 'WIFI ROUTER',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '9' => '09tk V',
+            $product['category'] === 'SC' && $product['sub_category'] === 'MV' && $product['price'] == '10' => '10tk MV',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '14' => '14tk V',
+            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '14' => '14tk D',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' => '19tk V',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' => '19tk V',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' => '19tk V_30min',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '20' => '20tk MV',
+            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '29' => '29tk D_500mb',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '29' => '29tk V_40min',
+            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '29' => '29tk D_1gb',
+            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '49' => '49tk D_1gb',
+            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '50' => '50tk MV',
+            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '69' => '69tk D',
             default => 'Unknown Product',
         };
     }
@@ -175,13 +204,77 @@ class GenerateReport extends Page
             }
         }
 
+        // Fetch stock data for today, fallback to latest if none
+        $stocks = Stock::whereDate('created_at', Carbon::today())->get();
+        if ($stocks->isEmpty()) {
+            $latestStock = Stock::latest()->first();
+            $stocks = $latestStock ? collect([$latestStock]) : collect([]);
+            Log::debug('No stock data for today, using latest', ['stock' => $latestStock ? $latestStock->toArray() : null]);
+        }
+        Log::debug('Raw stock data', ['stocks' => $stocks->toArray()]);
+
+        // Process stock products (products is already an array due to casting)
+        $stockProducts = [];
+        foreach ($stocks as $stock) {
+            $products = $stock->products ?? [];
+            if (!is_array($products)) {
+                Log::warning('Invalid products array in stock record', ['id' => $stock->id]);
+                continue;
+            }
+            foreach ($products as $product) {
+                $stockProducts[] = [
+                    'category' => $product['category'] ?? null,
+                    'sub_category' => $product['sub_category'] ?? null,
+                    'price' => $product['price'] ?? null,
+                    'quantity' => $product['quantity'] ?? 0,
+                ];
+            }
+        }
+
+        // Filter valid stock products and collect product types
+        $stockProducts = array_filter($stockProducts, function ($product) {
+            $valid = !is_null($product['category']) && !is_null($product['sub_category']) && !is_null($product['price']);
+            if (!$valid) {
+                Log::warning('Skipping stock product due to missing fields', ['product' => $product]);
+            }
+            return $valid;
+        });
+
+        foreach ($stockProducts as $product) {
+            $key = $this->getProductKey($product);
+            if (!isset($productTypes[$key])) {
+                $productTypes[$key] = [
+                    'label' => $this->getProductLabel($product),
+                    'product' => $product,
+                ];
+            }
+        }
+
         // Define the desired header order
         $headerOrder = [
             'name',
-            'std',
-            'rbsp',
-            'tk_19',
-            'tk_29_d',
+            'mmst',
+            'esimp',
+            'mmsts',
+            'esimup',
+            'sim_swap',
+            'esimswap',
+            'ev_swap',
+            'router_wifi',
+            'scmb_9_voice',
+            'mv_10_mv',
+            'scv_14_voice',
+            'scd_14_data',
+            'scv_19_voice',
+            'sc_19_voice',
+            'scv_19_30m_voice',
+            'mv_20_voice',
+            'scd_29_mb500_data',
+            'scv_29_40m_voice',
+            'scd_29_1gb_1day_data',
+            'scd_49_1gb_3day_data',
+            'mv_50_voice',
+            'scd_69_tk_data',
             'itopup',
             'amount',
         ];
@@ -240,7 +333,20 @@ class GenerateReport extends Page
         }
         Log::debug('Lifting totals', ['totals' => $liftingTotals]);
 
-        $html = '<div class="w-full mx-auto bg-white shadow-md rounded-lg p-6">';
+        // Map stock data to product keys
+        $stockTotals = [];
+        foreach ($stockProducts as $product) {
+            $key = $this->getProductKey($product);
+            if (!str_starts_with($key, 'unknown_')) {
+                if (!isset($stockTotals[$key])) {
+                    $stockTotals[$key] = 0;
+                }
+                $stockTotals[$key] += (int) $product['quantity'];
+            }
+        }
+        Log::debug('Stock totals', ['totals' => $stockTotals]);
+
+        $html = '<div class="w-full mx-auto shadow-md rounded-lg p-6">';
         $html .= '<div class="flex justify-between items-center mb-4">';
         $html .= '<h1 class="text-2xl font-bold">Patwary Telecom - Daily Summary Sheet</h1>';
         $html .= '<div class="flex items-center space-x-2">';
@@ -251,7 +357,7 @@ class GenerateReport extends Page
 
         $html .= '<div class="overflow-x-auto">';
         $html .= '<table class="w-full border-collapse border border-gray-300">';
-        $html .= '<thead><tr class="bg-gray-200">';
+        $html .= '<thead><tr>';
 
         // Generate dynamic headers
         foreach ($headers as $header) {
@@ -291,7 +397,7 @@ class GenerateReport extends Page
             }
         }
 
-        $html .= '<tr class="bg-gray-200 font-bold"><td class="border border-gray-300 px-4 py-2">Total</td>';
+        $html .= '<tr class="font-bold"><td class="border border-gray-300 px-4 py-2">Total</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
                 $html .= '<td class="border border-gray-300 px-4 py-2 text-right">' . number_format($grandTotals[$header['key']]) . '</td>';
@@ -309,10 +415,13 @@ class GenerateReport extends Page
         }
         $html .= '</tr>';
 
-        // Placeholder row (Stock)
+        // Stock row with dynamic data
         $html .= '<tr><td class="border border-gray-300 px-4 py-2">Stock</td>';
-        for ($i = 1; $i < count($headers); $i++) {
-            $html .= '<td class="border border-gray-300 px-4 py-2 text-right"></td>';
+        foreach ($headers as $header) {
+            if ($header['key'] !== 'name') {
+                $value = $stockTotals[$header['key']] ?? 0;
+                $html .= '<td class="border border-gray-300 px-4 py-2 text-right">' . number_format($value) . '</td>';
+            }
         }
         $html .= '</tr>';
 

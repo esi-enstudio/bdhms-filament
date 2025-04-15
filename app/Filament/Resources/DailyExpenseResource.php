@@ -85,7 +85,7 @@ class DailyExpenseResource extends Resource
                                         $items = $get('items') ?? [];
                                         $total = collect($items)->sum('amount');
                                         return number_format($total, 2);
-                                    })->extraAttributes(['class' => 'text-lg font-bold bg-gray-100 p-4 rounded']),
+                                    })->extraAttributes(['class' => 'text-lg font-bold p-4 rounded']),
                             ]),
                     ]),
             ]);
