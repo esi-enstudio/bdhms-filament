@@ -30,7 +30,7 @@ class GenerateReport extends Page
             ->groupBy('rso.name')
             ->map(function ($records, $rsoName) {
                 $totals = [
-                    'i_top_up' => 0,
+                    'itopup' => 0,
                     'amount' => 0,
                 ];
 
@@ -43,7 +43,7 @@ class GenerateReport extends Page
 
                     $totalAmount = $productsSum->sum() + ($record->itopup - ($record->itopup * 2.75 / 100) - $record->ta);
 
-                    $totals['i_top_up'] += $record->itopup;
+                    $totals['itopup'] += $record->itopup;
                     $totals['amount'] += $totalAmount;
 
                     foreach ($record->products as $product) {
@@ -134,39 +134,43 @@ class GenerateReport extends Page
             }
         }
 
-        // Fetch and log lifting data for today
+        // Fetch lifting data for today
         $liftings = Lifting::whereDate('created_at', Carbon::today())->get();
         Log::debug('Raw lifting data', ['liftings' => $liftings->toArray()]);
-//dd($liftings);
-        // Transform lifting data
-        $liftings = $liftings->map(function ($lifting) {
-            // Adjust mapping based on actual Lifting model schema
-//            dd($lifting);
-            $data = [
-                'category' => $lifting->category ?? $lifting->product_category ?? $lifting->cat ?? null,
-                'sub_category' => $lifting->sub_category ?? $lifting->product_sub_category ?? $lifting->sub_cat ?? null,
-                'price' => $lifting->price ?? $lifting->lifting_price ?? null,
-                'quantity' => $lifting->quantity ?? 0,
-            ];
-            dd($data);
-            Log::debug('Transformed lifting record', ['record' => $data]);
-            return $data;
-        })->filter(function ($lifting) {
-            // Log skipped records
-            if (is_null($lifting['category']) || is_null($lifting['sub_category']) || is_null($lifting['price'])) {
-                Log::warning('Skipping lifting record due to missing fields', ['record' => $lifting]);
-                return false;
-            }
-            return true;
-        })->toArray();
 
-        // Collect product types from liftings
+        // Process lifting products (products is already an array due to casting)
+        $liftingProducts = [];
         foreach ($liftings as $lifting) {
-            $key = $this->getProductKey($lifting);
+            $products = $lifting->products ?? [];
+            if (!is_array($products)) {
+                Log::warning('Invalid products array in lifting record', ['id' => $lifting->id]);
+                continue;
+            }
+            foreach ($products as $product) {
+                $liftingProducts[] = [
+                    'category' => $product['category'] ?? null,
+                    'sub_category' => $product['sub_category'] ?? null,
+                    'price' => $product['price'] ?? null,
+                    'quantity' => $product['quantity'] ?? 0,
+                ];
+            }
+        }
+
+        // Filter valid lifting products and collect product types
+        $liftingProducts = array_filter($liftingProducts, function ($product) {
+            $valid = !is_null($product['category']) && !is_null($product['sub_category']) && !is_null($product['price']);
+            if (!$valid) {
+                Log::warning('Skipping lifting product due to missing fields', ['product' => $product]);
+            }
+            return $valid;
+        });
+
+        foreach ($liftingProducts as $product) {
+            $key = $this->getProductKey($product);
             if (!isset($productTypes[$key])) {
                 $productTypes[$key] = [
-                    'label' => $this->getProductLabel($lifting),
-                    'product' => $lifting,
+                    'label' => $this->getProductLabel($product),
+                    'product' => $product,
                 ];
             }
         }
@@ -178,7 +182,7 @@ class GenerateReport extends Page
             'rbsp',
             'tk_19',
             'tk_29_d',
-            'i_top_up',
+            'itopup',
             'amount',
         ];
 
@@ -191,9 +195,9 @@ class GenerateReport extends Page
                     'label' => 'RSO',
                     'align' => 'left',
                 ];
-            } elseif ($key === 'i_top_up') {
+            } elseif ($key === 'itopup') {
                 $headers[] = [
-                    'key' => 'i_top_up',
+                    'key' => 'itopup',
                     'label' => 'i-top up',
                     'align' => 'right',
                 ];
@@ -225,13 +229,13 @@ class GenerateReport extends Page
 
         // Map lifting data to product keys
         $liftingTotals = [];
-        foreach ($liftings as $lifting) {
-            $key = $this->getProductKey($lifting);
+        foreach ($liftingProducts as $product) {
+            $key = $this->getProductKey($product);
             if (!str_starts_with($key, 'unknown_')) {
                 if (!isset($liftingTotals[$key])) {
                     $liftingTotals[$key] = 0;
                 }
-                $liftingTotals[$key] += (int) $lifting['quantity'];
+                $liftingTotals[$key] += (int) $product['quantity'];
             }
         }
         Log::debug('Lifting totals', ['totals' => $liftingTotals]);
