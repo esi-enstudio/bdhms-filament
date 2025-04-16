@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property mixed $house
  * @property mixed $reports
  */
-class DailyReport extends Model
+class ReceivingDues extends Model
 {
     use HasFactory;
 

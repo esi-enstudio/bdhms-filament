@@ -2,10 +2,9 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\DilyExpenseResource\Pages;
-use App\Filament\Resources\DilyExpenseResource\RelationManagers;
+use App\Filament\Resources\DailyExpenseResource\Pages;
+use App\Filament\Resources\DailyExpenseResource\RelationManagers;
 use App\Models\DailyExpense;
-use App\Models\DilyExpense;
 use App\Models\House;
 use Carbon\Carbon;
 use Filament\Forms;
@@ -18,7 +17,6 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Table;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,6 +27,8 @@ class DailyExpenseResource extends Resource
     protected static ?string $model = DailyExpense::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    protected static ?string $navigationGroup = 'Expense';
 
     public static function form(Form $form): Form
     {
@@ -163,9 +163,9 @@ class DailyExpenseResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListDilyExpenses::route('/'),
-            'create' => Pages\CreateDilyExpense::route('/create'),
-            'edit' => Pages\EditDilyExpense::route('/{record}/edit'),
+            'index' => Pages\ListDailyExpenses::route('/'),
+            'create' => Pages\CreateDailyExpense::route('/create'),
+            'edit' => Pages\EditDailyExpense::route('/{record}/edit'),
         ];
     }
 }

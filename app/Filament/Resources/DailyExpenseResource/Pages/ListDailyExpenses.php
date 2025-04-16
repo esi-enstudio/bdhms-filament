@@ -1,19 +1,19 @@
 <?php
 
-namespace App\Filament\Resources\DilyExpenseResource\Pages;
+namespace App\Filament\Resources\DailyExpenseResource\Pages;
 
 use App\Filament\Resources\DailyExpenseResource;
 use Filament\Actions;
-use Filament\Resources\Pages\EditRecord;
+use Filament\Resources\Pages\ListRecords;
 
-class EditDilyExpense extends EditRecord
+class ListDailyExpenses extends ListRecords
 {
     protected static string $resource = DailyExpenseResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\CreateAction::make(),
         ];
     }
 }

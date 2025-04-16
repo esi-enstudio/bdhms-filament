@@ -2,12 +2,10 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\DailyReportResource\Pages;
-use App\Filament\Resources\DailyReportResource\RelationManagers;
-use App\Models\DailyReport;
+use App\Filament\Resources\ReceivingDuesResource\Pages;
+use App\Models\ReceivingDues;
 use App\Models\House;
 use Carbon\Carbon;
-use Filament\Forms;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
@@ -19,16 +17,14 @@ use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
-class DailyReportResource extends Resource
+class ReceivingDuesResource extends Resource
 {
-    protected static ?string $model = DailyReport::class;
+    protected static ?string $model = ReceivingDues::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?string $navigationGroup = 'Reports';
+    protected static ?string $navigationGroup = 'Daily Sales & Stock';
 
     public static function form(Form $form): Form
     {
@@ -97,10 +93,10 @@ class DailyReportResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('house.name')
-                    ->description(fn(DailyReport $dailyReport): string => $dailyReport->house->code)
+                    ->description(fn(ReceivingDues $dailyReport): string => $dailyReport->house->code)
                     ->sortable(),
                 TextColumn::make('reports')
-                    ->state(function (DailyReport $record) {
+                    ->state(function (ReceivingDues $record) {
                         return $record->reports;
                     })
                     ->formatStateUsing(function ($state) {
@@ -145,10 +141,6 @@ class DailyReportResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\Action::make('get_reports')
-                    ->label('Get Reports')
-                    ->icon('heroicon-o-document')
-                    ->url(fn($record) => self::getUrl('report', ['record' => $record->id]))
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -167,10 +159,9 @@ class DailyReportResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListDailyReports::route('/'),
-            'create' => Pages\CreateDailyReport::route('/create'),
-            'edit' => Pages\EditDailyReport::route('/{record}/edit'),
-            'report' => Pages\GenerateReport::route('/{record}/report'),
+            'index' => Pages\ListReceivingDues::route('/'),
+            'create' => Pages\CreateReceivingDues::route('/create'),
+            'edit' => Pages\EditReceivingDues::route('/{record}/edit'),
         ];
     }
 }
