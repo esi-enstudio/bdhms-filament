@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @method static whereIn(string $string, \Illuminate\Support\Collection $houseCodes)
  * @method static where(string $string, string $string1)
  * @method static find($state)
+ * @method static pluck(string $string, string $string1)
  */
 class House extends Model
 {

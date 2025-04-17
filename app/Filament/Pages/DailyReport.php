@@ -2,15 +2,26 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\House;
 use App\Models\Lifting;
 use App\Models\RsoSales;
 use App\Models\Stock;
 use Carbon\Carbon;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Log;
 
-class DailyReport extends Page
+/**
+ * @property mixed $form
+ */
+class DailyReport extends Page implements HasForms
 {
+    use InteractsWithForms;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationGroup = 'Reports';
@@ -19,15 +30,62 @@ class DailyReport extends Page
 
     public $record;
     public $rsoSale;
-    public $date;
+    public $selectedDate;
+    public $selectedHouse;
     public $rsos;
     public $tableHtml;
 
     public function mount(): void
     {
-        $this->date = now()->format('Y-m-d');
-        $this->rsoSale = RsoSales::whereDate('created_at', Carbon::today())->get();
-        Log::debug('RSO Sales count', ['count' => $this->rsoSale->count()]);
+        $this->form->fill([
+            'selectedDate' => now()->format('Y-m-d'),
+            'selectedHouse' => null,
+        ]);
+        // Don't fetch data yet; wait for both date and house to be selected
+        $this->tableHtml = '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">Please select house and date to view the report.</div>';
+    }
+
+    protected function getFormSchema(): array
+    {
+        return [
+            Grid::make(2)->schema([
+                Select::make('selectedHouse')
+                    ->label('Select House')
+                    ->options(House::where('status','active')->pluck('name', 'id')->toArray())
+                    ->placeholder('Select a house')
+                    ->reactive()
+                    ->required() // Make house selection required
+                    ->afterStateUpdated(fn ($state) => $this->selectedHouse = $state),
+
+                DatePicker::make('selectedDate')
+                    ->label('Select Date')
+                    ->default(now()->format('Y-m-d'))
+                    ->reactive()
+                    ->required()
+                    ->afterStateUpdated(fn ($state) => $this->selectedDate = $state),
+            ]),
+        ];
+    }
+
+    public function updated($property): void
+    {
+        if (in_array($property, ['selectedDate', 'selectedHouse'])) {
+            $this->fetchData();
+        }
+    }
+
+    protected function fetchData(): void
+    {
+        // Require both date and house to be selected
+        if (!$this->selectedDate || !$this->selectedHouse) {
+            $this->tableHtml = '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">Please select both a date and a house to view the report.</div>';
+            return;
+        }
+
+        $query = RsoSales::whereDate('created_at', $this->selectedDate)
+            ->where('house_id', $this->selectedHouse);
+        $this->rsoSale = $query->get();
+        Log::debug('RSO Sales count', ['count' => $this->rsoSale->count(), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
 
         // Process RSO data
         $this->rsos = collect($this->rsoSale)
@@ -41,7 +99,7 @@ class DailyReport extends Page
                 foreach ($records as $record) {
                     $productsSum = collect($record->products)->map(function ($item) {
                         $quantity = intval($item['quantity']);
-                        $rate = floatval($item['rate'] ?? $item['price']); // Fallback to price if rate missing
+                        $rate = floatval($item['rate'] ?? $item['price']);
                         return $quantity * $rate;
                     });
 
@@ -70,7 +128,7 @@ class DailyReport extends Page
             ->values()
             ->toArray();
 
-        Log::debug('Processed RSOs', ['rsos_count' => count($this->rsos)]);
+        Log::debug('Processed RSOs', ['rsos_count' => count($this->rsos), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
 
         // Generate the table HTML
         $this->tableHtml = $this->generateTableHtml();
@@ -85,7 +143,6 @@ class DailyReport extends Page
             return 'unknown_' . md5(json_encode($product));
         }
 
-        // Use product_id if available to disambiguate
         $productId = $product['product_id'] ?? '';
 
         return match (true) {
@@ -166,13 +223,16 @@ class DailyReport extends Page
                 }
             }
         }
-        Log::debug('Product types collected', ['product_types' => array_keys($productTypes)]);
+        Log::debug('Product types collected', ['product_types' => array_keys($productTypes), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
 
-        // Fetch lifting data for today
-        $liftings = Lifting::whereDate('created_at', Carbon::today())->get();
-        Log::debug('Raw lifting data', ['liftings_count' => $liftings->count()]);
+        // Fetch lifting data for selected date
+        $liftingQuery = Lifting::whereDate('created_at', $this->selectedDate)
+            ->where('house_id', $this->selectedHouse);
+        $liftings = $liftingQuery->get();
+        Log::debug('Raw lifting data', ['liftings_count' => $liftings->count(), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
 
-        // Process lifting products
+        // Process lifting data for totals including itopup and amount
+        $liftingTotals = ['itopup' => 0, 'amount' => 0];
         $liftingProducts = [];
         foreach ($liftings as $lifting) {
             $products = $lifting->products ?? [];
@@ -180,6 +240,18 @@ class DailyReport extends Page
                 Log::warning('Invalid products array in lifting record', ['id' => $lifting->id]);
                 continue;
             }
+
+            // Calculate itopup and amount for lifting
+            $productsSum = collect($products)->map(function ($item) {
+                $quantity = intval($item['quantity']);
+                $rate = floatval($item['rate'] ?? $item['price']);
+                return $quantity * $rate;
+            });
+
+            $totalAmount = $productsSum->sum() + ($lifting->itopup - ($lifting->itopup * 2.75 / 100) - ($lifting->ta ?? 0));
+            $liftingTotals['itopup'] += $lifting->itopup ?? 0;
+            $liftingTotals['amount'] += $totalAmount;
+
             foreach ($products as $product) {
                 $liftingProducts[] = [
                     'category' => $product['category'] ?? null,
@@ -208,18 +280,28 @@ class DailyReport extends Page
                     'product' => $product,
                 ];
             }
+            if (!str_starts_with($key, 'unknown_')) {
+                if (!isset($liftingTotals[$key])) {
+                    $liftingTotals[$key] = 0;
+                }
+                $liftingTotals[$key] += (int) $product['quantity'];
+            }
         }
 
-        // Fetch stock data for today, fallback to latest
-        $stocks = Stock::whereDate('created_at', Carbon::today())->get();
+        // Fetch stock data for selected date, fallback to latest
+        $stockQuery = Stock::whereDate('created_at', $this->selectedDate)
+            ->where('house_id', $this->selectedHouse);
+        $stocks = $stockQuery->get();
         if ($stocks->isEmpty()) {
-            $latestStock = Stock::latest()->first();
+            $latestStockQuery = Stock::where('house_id', $this->selectedHouse)->latest();
+            $latestStock = $latestStockQuery->first();
             $stocks = $latestStock ? collect([$latestStock]) : collect([]);
-            Log::debug('No stock data for today, using latest', ['stock_count' => $stocks->count()]);
+            Log::debug('No stock data for selected date, using latest', ['stock_count' => $stocks->count(), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
         }
-        Log::debug('Raw stock data', ['stocks_count' => $stocks->count()]);
+        Log::debug('Raw stock data', ['stocks_count' => $stocks->count(), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
 
-        // Process stock products
+        // Process stock data for totals including itopup and amount
+        $stockTotals = ['itopup' => 0, 'amount' => 0];
         $stockProducts = [];
         foreach ($stocks as $stock) {
             $products = $stock->products ?? [];
@@ -227,6 +309,18 @@ class DailyReport extends Page
                 Log::warning('Invalid products array in stock record', ['id' => $stock->id]);
                 continue;
             }
+
+            // Calculate itopup and amount for stock
+            $productsSum = collect($products)->map(function ($item) {
+                $quantity = intval($item['quantity']);
+                $rate = floatval($item['rate'] ?? $item['price']);
+                return $quantity * $rate;
+            });
+
+            $totalAmount = $productsSum->sum() + ($stock->itopup - ($stock->itopup * 2.75 / 100) - ($stock->ta ?? 0));
+            $stockTotals['itopup'] += $stock->itopup ?? 0;
+            $stockTotals['amount'] += $totalAmount;
+
             foreach ($products as $product) {
                 $stockProducts[] = [
                     'category' => $product['category'] ?? null,
@@ -254,6 +348,12 @@ class DailyReport extends Page
                     'label' => $this->getProductLabel($product),
                     'product' => $product,
                 ];
+            }
+            if (!str_starts_with($key, 'unknown_')) {
+                if (!isset($stockTotals[$key])) {
+                    $stockTotals[$key] = 0;
+                }
+                $stockTotals[$key] += (int) $product['quantity'];
             }
         }
 
@@ -297,7 +397,7 @@ class DailyReport extends Page
             } elseif ($key === 'itopup') {
                 $headers[] = [
                     'key' => 'itopup',
-                    'label' => 'i-top up',
+                    'label' => 'I\'top up',
                     'align' => 'right',
                 ];
             } elseif ($key === 'amount') {
@@ -325,47 +425,23 @@ class DailyReport extends Page
                 ];
             }
         }
-        Log::debug('Headers generated', ['headers' => array_column($headers, 'key')]);
+        Log::debug('Headers generated', ['headers' => array_column($headers, 'key'), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
 
-        // Map lifting data to product keys
-        $liftingTotals = [];
-        foreach ($liftingProducts as $product) {
-            $key = $this->getProductKey($product);
-            if (!str_starts_with($key, 'unknown_')) {
-                if (!isset($liftingTotals[$key])) {
-                    $liftingTotals[$key] = 0;
-                }
-                $liftingTotals[$key] += (int) $product['quantity'];
-            }
-        }
-        Log::debug('Lifting totals', ['totals' => $liftingTotals]);
-
-        // Map stock data to product keys
-        $stockTotals = [];
-        foreach ($stockProducts as $product) {
-            $key = $this->getProductKey($product);
-            if (!str_starts_with($key, 'unknown_')) {
-                if (!isset($stockTotals[$key])) {
-                    $stockTotals[$key] = 0;
-                }
-                $stockTotals[$key] += (int) $product['quantity'];
-            }
-        }
-        Log::debug('Stock totals', ['totals' => $stockTotals]);
+        // Fetch the house name dynamically
+        $houseName = $this->selectedHouse ? House::find($this->selectedHouse)?->name ?? 'Unknown House' : 'Select a House';
 
         // Check if there's any data to display
         if (empty($this->rsos) && empty($liftingProducts) && empty($stockProducts)) {
-            return '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">No data available for ' . htmlspecialchars($this->date) . '</div>';
+            return '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">No data available for ' . 'house <em>' . htmlspecialchars($houseName) .'</em> date '. Carbon::parse($this->selectedDate)->toFormattedDayDateString() . '</div>';
         }
 
         $html = '<div class="w-full mx-auto shadow-md rounded-lg p-6">';
         $html .= '<div class="flex justify-between items-center mb-4">';
-        $html .= '<h1 class="text-2xl font-bold">Patwary Telecom - Daily Summary Sheet</h1>';
-        $html .= '<div class="flex items-center space-x-2">';
-        $html .= '<span class="text-lg">Date:</span>';
-        $html .= '<input type="text" class="border rounded px-2 py-1" value="' . htmlspecialchars($this->date) . '" readonly>';
-        $html .= '<span class="text-lg">2025</span>';
-        $html .= '</div></div>';
+        // Fetch the house name dynamically
+        $houseName = $this->selectedHouse ? House::find($this->selectedHouse)?->name ?? 'Unknown House' : 'Select a House';
+        $html .= '<h1 class="text-2xl font-bold">' . htmlspecialchars($houseName) . ' - Daily Summary Sheet</h1>';
+        $html .= '<h1 class="text-2xl font-bold">Date: ' .Carbon::parse($this->selectedDate)->toFormattedDayDateString().'</h1>';
+        $html .= '</div>';
 
         $html .= '<div class="overflow-x-auto">';
         $html .= '<table class="w-full border-collapse border border-gray-300">';
@@ -392,7 +468,7 @@ class DailyReport extends Page
             $html .= '</tr>';
         }
 
-        // Calculate and display totals
+        // Calculate and display totals (excluding itopup and amount)
         $grandTotals = array_fill_keys(array_column($headers, 'key'), 0);
         foreach ($this->rsos as $rso) {
             foreach ($grandTotals as $key => $value) {
@@ -405,8 +481,8 @@ class DailyReport extends Page
         $html .= '<tr class="font-bold"><td class="border border-gray-300 px-4 py-2">Total</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
-                $value = $grandTotals[$header['key']];
-                $html .= '<td class="border border-gray-300 px-4 py-2 text-right">' . ($value === 0 ? '' : number_format($value)) . '</td>';
+                $value = in_array($header['key'], ['itopup', 'amount']) ? '' : ($grandTotals[$header['key']] === 0 ? '' : number_format($grandTotals[$header['key']]));
+                $html .= '<td class="border border-gray-300 px-4 py-2 text-right">' . $value . '</td>';
             }
         }
         $html .= '</tr>';
@@ -415,8 +491,10 @@ class DailyReport extends Page
         $html .= '<tr><td class="border border-gray-300 px-4 py-2">Lifting</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
-                $value = $liftingTotals[$header['key']] ?? 0;
-                $html .= '<td class="border border-gray-300 px-4 py-2 text-right">' . ($value === 0 ? '' : number_format($value)) . '</td>';
+                $value = $header['key'] === 'amount' ? '' : ($liftingTotals[$header['key']] ?? 0);
+                $html .= '<td class="border border-gray-300 px-4 py-2 text-right">';
+                $html .= $value === '' || $value === 0 ? '' : number_format((float)$value);
+                $html .= '</td>';
             }
         }
         $html .= '</tr>';
@@ -425,15 +503,17 @@ class DailyReport extends Page
         $html .= '<tr><td class="border border-gray-300 px-4 py-2">Stock</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
-                $value = $stockTotals[$header['key']] ?? 0;
-                $html .= '<td class="border border-gray-300 px-4 py-2 text-right">' . ($value === 0 ? '' : number_format($value)) . '</td>';
+                $value = $header['key'] === 'amount' ? '' : ($stockTotals[$header['key']] ?? 0);
+                $html .= '<td class="border border-gray-300 px-4 py-2 text-right">';
+                $html .= $value === '' || $value === 0 ? '' : number_format((float)$value);
+                $html .= '</td>';
             }
         }
         $html .= '</tr>';
 
-        $html .= '</tbody></table></div>';
-        $html .= '<div class="text-center mt-4 text-gray-500">Page 1</div>';
-        $html .= '</div>';
+//        $html .= '</tbody></table></div>';
+//        $html .= '<div class="text-center mt-4 text-gray-500">Page 1</div>';
+//        $html .= '</div>';
 
         return $html;
     }

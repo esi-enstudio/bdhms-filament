@@ -48,7 +48,7 @@ class ReceivingDuesResource extends Resource
                                             });
                                     }),
 
-                                TableRepeater::make('reports')
+                                TableRepeater::make('items')
                                     ->reorderable()
                                     ->cloneable()
                                     ->schema([
@@ -78,11 +78,11 @@ class ReceivingDuesResource extends Resource
                                 Placeholder::make('total_amount')
                                     ->label('Total Amount')
                                     ->content(function ($get) {
-//                                        $items = $get('items') ?? [];
-//                                        $total = collect($items)->sum('amount');
-//                                        return number_format($total, 2);
+                                        $items = $get('items') ?? [];
+                                        $total = collect($items)->sum('amount');
+                                        return number_format($total);
                                     })
-                                    ->extraAttributes(['class' => 'text-lg font-bold bg-gray-100 p-4 rounded']),
+                                    ->extraAttributes(['class' => 'text-lg font-bold p-4 rounded']),
                             ]),
                     ]),
             ]);
@@ -163,5 +163,10 @@ class ReceivingDuesResource extends Resource
             'create' => Pages\CreateReceivingDues::route('/create'),
             'edit' => Pages\EditReceivingDues::route('/{record}/edit'),
         ];
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return 'Receiving / Dues';
     }
 }

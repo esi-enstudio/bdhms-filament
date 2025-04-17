@@ -161,11 +161,6 @@ class RsoSalesResource extends Resource
                                         }
                                     }),
 
-                                TextInput::make('rate')
-                                    ->live(onBlur: true)
-                                    ->required(fn(callable $get): bool => intval($get('product_id')) !== 0)
-                                    ->numeric(),
-
                                 TextInput::make('quantity')
                                     ->numeric()
                                     ->required(fn(callable $get): bool => intval($get('product_id')) !== 0)
@@ -194,6 +189,11 @@ class RsoSalesResource extends Resource
                                             }
                                         }
                                     }),
+
+                                TextInput::make('rate')
+                                    ->live(onBlur: true)
+                                    ->required(fn(callable $get): bool => intval($get('product_id')) !== 0)
+                                    ->numeric(),
 
                                 Hidden::make('retailer_price'),
                                 Hidden::make('lifting_price'),
@@ -266,7 +266,7 @@ class RsoSalesResource extends Resource
                                         $html = '';
 
                                         // If stock exists, loop through the products
-                                        if ($stock && $stock->products) {
+                                        if ($stock) {
                                             $html = self::getCurrentStock($stock, $html);
                                         } else {
 
@@ -388,8 +388,6 @@ class RsoSalesResource extends Resource
             $html .= $data;
         }
 
-        $html .= '<hr>';
-
         $categoryWiseTotals = collect($stock->products)
             ->groupBy('category')
             ->map(function ($items){
@@ -400,12 +398,15 @@ class RsoSalesResource extends Resource
             });
 
         foreach ($categoryWiseTotals as $category => $totalAmount){
+            $html .= '<hr>';
             $html .= '<strong>Total '.$category.'</strong>: '.number_format($totalAmount).' Tk <br>';
         }
 
-        $html .= '<hr>';
-        $html .= '<strong>Grand Total: </strong>'.number_format($categoryWiseTotals->sum()).' Tk';
-
+        if ($categoryWiseTotals->sum() > 0)
+        {
+            $html .= '<hr>';
+            $html .= '<strong>Grand Total: </strong>'.number_format($categoryWiseTotals->sum()).' Tk';
+        }
 
         return $html;
     }
