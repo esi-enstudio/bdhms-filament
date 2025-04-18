@@ -7,6 +7,7 @@ use App\Models\House;
 use App\Models\Product;
 use App\Models\Retailer;
 use App\Models\Rso;
+use App\Models\RsoLifting;
 use App\Models\RsoSales;
 use App\Models\RsoStock;
 use App\Rules\ProductNotInStockRule;
@@ -100,15 +101,53 @@ class RsoSalesResource extends Resource
                         TableRepeater::make('products')
                             ->reorderable()
                             ->cloneable()
+                            ->extraAttributes(fn (Get $get) => ['house_id' => $get('house_id')])
                             ->schema([
                                 Hidden::make('category'),
                                 Hidden::make('sub_category'),
+                                Hidden::make('code'),
 
                                 Select::make('product_id')
                                     ->label('Name')
                                     ->live()
-                                    ->options(fn() => Product::where('status','active')->pluck('code','id'))
-                                    ->afterStateUpdated(function(Get $get, Set $set, ?string $state){
+                                    ->searchable()
+                                    ->options(function (Get $get) {
+                                        $houseId = intval($get('house_id'));
+                                        $rsoId = intval($get('rso_id'));
+
+                                        // Return empty options if house_id or rso_id is not set
+                                        if (!$houseId || !$rsoId) {
+                                            return [];
+                                        }
+
+                                        // Get product_ids from RsoStock for the selected house_id and rso_id
+                                        $availableProductIds = RsoStock::query()
+                                            ->where('house_id', $houseId)
+                                            ->where('rso_id', $rsoId)
+                                            ->latest()
+                                            ->get()
+                                            ->pluck('products')
+                                            ->flatten(1)
+                                            ->pluck('product_id')
+                                            ->map(fn ($id) => (string)$id) // Ensure string comparison
+                                            ->unique()
+                                            ->toArray();
+
+                                        // Get only active products that are available in RsoStock
+                                        $products = Product::where('status', 'active')
+                                            ->whereIn('id', $availableProductIds)
+                                            ->get();
+
+                                        // Build options with product codes
+                                        $options = [];
+                                        foreach ($products as $product) {
+                                            $label = $product->code ?? 'Product ' . $product->id;
+                                            $options[$product->id] = $label;
+                                        }
+
+                                        return $options;
+                                    })
+                                    ->afterStateUpdated(function (Get $get, Set $set, ?string $state) {
                                         $productId = intval($state);
                                         $houseId = intval($get('../../house_id'));
                                         $rsoId = intval($get('../../rso_id'));
@@ -118,14 +157,13 @@ class RsoSalesResource extends Resource
                                             return;
                                         }
 
-                                        // ✅ RSO স্টক চেক করুন
+                                        // Check RsoStock for the selected house_id and rso_id
                                         $rsoStock = RsoStock::where('house_id', $houseId)
                                             ->where('rso_id', $rsoId)
                                             ->latest()
                                             ->first();
 
-                                        if (!$rsoStock)
-                                        {
+                                        if (!$rsoStock) {
                                             $set('product_id', '');
                                             $set('rate', '');
                                             $set('quantity', '');
@@ -135,50 +173,52 @@ class RsoSalesResource extends Resource
                                                 ->body('এই আর এস ওর কোন স্টক নেই!')
                                                 ->danger()
                                                 ->send();
-                                        }else{
-                                            if (!collect($rsoStock->products)->contains('product_id', $productId))
-                                            {
-                                                $set('product_id', '');
-                                                $set('rate', '');
-                                                $set('quantity', '');
+                                            return;
+                                        }
 
-                                                Notification::make()
-                                                    ->title('Product Not Found')
-                                                    ->body('এই আর এস ওর উক্ত প্রোডাক্টটি নেই!')
-                                                    ->danger()
-                                                    ->send();
-                                            }else{
-                                                // ✅ প্রোডাক্ট ডাটা সেট করুন
-                                                $product = Product::find($productId);
+                                        if (!collect($rsoStock->products)->contains('product_id', $productId)) {
+                                            $set('product_id', '');
+                                            $set('rate', '');
+                                            $set('quantity', '');
 
-                                                $set('rate', $product->retailer_price);
-                                                $set('category', $product->category);
-                                                $set('sub_category', $product->sub_category);
-                                                $set('retailer_price', $product->retailer_price);
-                                                $set('lifting_price', $product->lifting_price);
-                                                $set('price', $product->price);
-                                            }
+                                            Notification::make()
+                                                ->title('Product Not Found')
+                                                ->body('এই আর এস ওর উক্ত প্রোডাক্টটি নেই!')
+                                                ->danger()
+                                                ->send();
+                                            return;
+                                        }
+
+                                        // Set product data
+                                        $product = Product::find($productId);
+
+                                        if ($product) {
+                                            $set('rate', $product->retailer_price);
+                                            $set('category', $product->category);
+                                            $set('sub_category', $product->sub_category);
+                                            $set('code', $product->code);
+                                            $set('retailer_price', $product->retailer_price);
+                                            $set('lifting_price', $product->lifting_price);
+                                            $set('price', $product->price);
                                         }
                                     }),
 
                                 TextInput::make('quantity')
                                     ->numeric()
-                                    ->required(fn(callable $get): bool => intval($get('product_id')) !== 0)
-                                    ->live(onBlur:true)
-                                    ->afterStateUpdated(function (Get $get, Set $set){
+                                    ->required(fn (callable $get): bool => intval($get('product_id')) !== 0)
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function (Get $get, Set $set) {
                                         $productId = intval($get('product_id'));
                                         $rsoId = intval($get('../../rso_id'));
                                         $qty = intval($get('quantity'));
 
-                                        // ✅ RSO স্টক চেক করুন
+                                        // Check RsoStock
                                         $rsoStock = RsoStock::where('rso_id', $rsoId)->latest()->first();
 
-                                        if ($rsoStock)
-                                        {
+                                        if ($rsoStock) {
                                             $stockQty = collect($rsoStock->products)->firstWhere('product_id', $productId)['quantity'] ?? 0;
 
-                                            if($qty > $stockQty)
-                                            {
+                                            if ($qty > $stockQty) {
                                                 $set('quantity', $stockQty);
 
                                                 Notification::make()
@@ -192,7 +232,7 @@ class RsoSalesResource extends Resource
 
                                 TextInput::make('rate')
                                     ->live(onBlur: true)
-                                    ->required(fn(callable $get): bool => intval($get('product_id')) !== 0)
+                                    ->required(fn (callable $get): bool => intval($get('product_id')) !== 0)
                                     ->numeric(),
 
                                 Hidden::make('retailer_price'),

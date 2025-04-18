@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @method static latest()
  * @method static sum(string $string)
  * @method static whereBetween(string $string, array $array)
+ * @method static whereDate(string $string, $selectedDate)
+ * @method static whereJsonContains(string $string, array $array)
  * @property mixed $house_id
  * @property mixed $products
  * @property mixed $itopup

@@ -41,7 +41,6 @@ class DailyReport extends Page implements HasForms
             'selectedDate' => now()->format('Y-m-d'),
             'selectedHouse' => null,
         ]);
-        // Don't fetch data yet; wait for both date and house to be selected
         $this->tableHtml = '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">Please select house and date to view the report.</div>';
     }
 
@@ -54,7 +53,7 @@ class DailyReport extends Page implements HasForms
                     ->options(House::where('status','active')->pluck('name', 'id')->toArray())
                     ->placeholder('Select a house')
                     ->reactive()
-                    ->required() // Make house selection required
+                    ->required()
                     ->afterStateUpdated(fn ($state) => $this->selectedHouse = $state),
 
                 DatePicker::make('selectedDate')
@@ -76,7 +75,6 @@ class DailyReport extends Page implements HasForms
 
     protected function fetchData(): void
     {
-        // Require both date and house to be selected
         if (!$this->selectedDate || !$this->selectedHouse) {
             $this->tableHtml = '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">Please select both a date and a house to view the report.</div>';
             return;
@@ -86,8 +84,12 @@ class DailyReport extends Page implements HasForms
             ->where('house_id', $this->selectedHouse);
         $this->rsoSale = $query->get();
         Log::debug('RSO Sales count', ['count' => $this->rsoSale->count(), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
+        Log::debug('RSO Sale products', [
+            'products' => $this->rsoSale->map(fn($sale) => $sale->products)->toArray(),
+            'date' => $this->selectedDate,
+            'house' => $this->selectedHouse
+        ]);
 
-        // Process RSO data
         $this->rsos = collect($this->rsoSale)
             ->groupBy('rso.name')
             ->map(function ($records, $rsoName) {
@@ -99,7 +101,7 @@ class DailyReport extends Page implements HasForms
                 foreach ($records as $record) {
                     $productsSum = collect($record->products)->map(function ($item) {
                         $quantity = intval($item['quantity']);
-                        $rate = floatval($item['rate'] ?? $item['price']);
+                        $rate = floatval($item['rate'] ?? $item['price'] ?? 0);
                         return $quantity * $rate;
                     });
 
@@ -111,6 +113,12 @@ class DailyReport extends Page implements HasForms
                     foreach ($record->products as $product) {
                         $quantity = (int) $product['quantity'];
                         $productKey = $this->getProductKey($product);
+                        Log::debug('Product key assigned', [
+                            'rso' => $rsoName,
+                            'code' => $product['code'] ?? 'missing',
+                            'productKey' => $productKey,
+                            'quantity' => $quantity,
+                        ]);
 
                         if (!isset($totals[$productKey])) {
                             $totals[$productKey] = 0;
@@ -120,6 +128,11 @@ class DailyReport extends Page implements HasForms
                     }
                 }
 
+                Log::debug('RSO totals', [
+                    'rso' => $rsoName,
+                    'totals' => $totals,
+                ]);
+
                 return [
                     'name' => $rsoName,
                     'totals' => $totals,
@@ -128,9 +141,8 @@ class DailyReport extends Page implements HasForms
             ->values()
             ->toArray();
 
-        Log::debug('Processed RSOs', ['rsos_count' => count($this->rsos), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
+        Log::debug('Processed RSOs', ['rsos_count' => count($this->rsos), 'rsos' => $this->rsos, 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
 
-        // Generate the table HTML
         $this->tableHtml = $this->generateTableHtml();
     }
 
@@ -138,79 +150,92 @@ class DailyReport extends Page implements HasForms
     {
         Log::debug('Processing product for key', ['product' => $product]);
 
-        if (!isset($product['category'], $product['sub_category'], $product['price'])) {
-            Log::warning('Missing required product keys', ['product' => $product]);
+        if (empty($product['code'])) {
+            Log::warning('Missing code in product', ['product' => $product]);
             return 'unknown_' . md5(json_encode($product));
         }
 
-        $productId = $product['product_id'] ?? '';
-
-        return match (true) {
-            $product['category'] === 'SIM' && $product['sub_category'] === 'DESH' && $productId === '15' => 'mmst',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'DESH' => 'esimp',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'DUPLICATE' && $productId === 'duplicate1' => 'mmsts',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'DUPLICATE' => 'esimup',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'SWAP' && $productId === '19' => 'sim_swap',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'SWAP' => 'esimswap',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'ESWAP' => 'ev_swap',
-            $product['category'] === 'DEVICE' && $product['sub_category'] === 'WIFI' => 'router_wifi',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '9' && $productId === '1' => 'scmb_9_voice',
-            $product['category'] === 'SC' && $product['sub_category'] === 'MV' && $product['price'] == '10' => 'mv_10_mv',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '14' => 'scv_14_voice',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '14' => 'scd_14_data',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' && $productId === '6' => 'scv_19_voice',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' => 'scv_19_30m_voice',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '20' && $productId === '8' => 'mv_20_voice',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '29' && $productId === '9' => 'scd_29_mb500_data',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '29' => 'scv_29_40m_voice',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '29' && $productId === '11' => 'scd_29_1gb_1day_data',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '49' && $productId === '12' => 'scd_49_1gb_3day_data',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '50' => 'mv_50_voice',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '69' && $productId === '13' => 'scd_69_tk_data',
+        $key = match ($product['code']) {
+            'MMST' => 'mmst',
+            'ESIMP' => 'esimp',
+            'MMSTS' => 'mmsts',
+            'ESIMUP' => 'esimup',
+            'SIM SWAP', 'SIM-SWAP' => 'sim_swap',
+            'ESIMSWAP' => 'esimswap',
+            'EV SWAP', 'EV-SWAP' => 'ev_swap',
+            'ROUTER' => 'router_wifi',
+            'SCMB-09' => 'scmb_9_voice',
+            'MV-10' => 'mv_10_mv',
+            'SCV-14' => 'scv_14_voice',
+            'SCD-14' => 'scd_14_data',
+            'SCV-19' => 'scv_19_voice',
+            'SC-19' => 'SC-19',
+            'SCV-19-30M' => 'scv_19_30m_voice',
+            'MV-20' => 'mv_20_voice',
+            'SCV-29-40M' => 'scv_29_40m_voice',
+            'SCD-29-MB500' => 'scd_29_mb500_data',
+            'SCD-29-1GB-1-DAY' => 'scd_29_1gb_1day_data',
+            'SCD-49-1GB-3-DAY' => 'scd_49_1gb_3day_data',
+            'MV50' => 'mv_50_voice',
+            'SCD-69' => 'scd_69_tk_data',
             default => 'unknown_' . md5(json_encode($product)),
         };
+
+        Log::debug('Product key mapped', [
+            'code' => $product['code'],
+            'key' => $key,
+            'product' => $product
+        ]);
+
+        return $key;
     }
 
     protected function getProductLabel(array $product): string
     {
         Log::debug('Processing product for label', ['product' => $product]);
 
-        if (!isset($product['category'], $product['sub_category'], $product['price'])) {
-            Log::warning('Missing required product keys', ['product' => $product]);
+        if (empty($product['code'])) {
+            Log::warning('Missing code in product', ['product' => $product]);
             return 'Unknown Product';
         }
 
-        $productId = $product['product_id'] ?? '';
-
-        return match (true) {
-            $product['category'] === 'SIM' && $product['sub_category'] === 'DESH' && $productId === '15' => 'STD',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'DESH' => 'E-SIM-P',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'DUPLICATE' && $productId === 'duplicate1' => 'MMSTS',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'DUPLICATE' => 'E-SIM-UP',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'SWAP' && $productId === '19' => 'SIM SWAP',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'SWAP' => 'E-SIM-SWAP',
-            $product['category'] === 'SIM' && $product['sub_category'] === 'ESWAP' => 'EV SWAP',
-            $product['category'] === 'DEVICE' && $product['sub_category'] === 'WIFI' => 'WIFI ROUTER',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '9' && $productId === '1' => '09tk V',
-            $product['category'] === 'SC' && $product['sub_category'] === 'MV' && $product['price'] == '10' => '10tk MV',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '14' => '14tk V',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '14' => '14tk D',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' && $productId === '6' => '19tk V',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '19' => '19tk V_30min',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '20' && $productId === '8' => '20tk MV',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '29' && $productId === '9' => '29tk D_500mb',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '29' => '29tk V_40min',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '29' && $productId === '11' => '29tk D_1gb',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '49' && $productId === '12' => '49tk D_1gb',
-            $product['category'] === 'SC' && $product['sub_category'] === 'VOICE' && $product['price'] == '50' => '50tk MV',
-            $product['category'] === 'SC' && $product['sub_category'] === 'DATA' && $product['price'] == '69' && $productId === '13' => '69tk D',
+        $label = match ($product['code']) {
+            'MMST' => 'STD',
+            'ESIMP' => 'E-SIM-P',
+            'MMSTS' => 'MMSTS',
+            'ESIMUP' => 'E-SIM-UP',
+            'SIM SWAP', 'SIM-SWAP' => 'SIM SWAP',
+            'ESIMSWAP' => 'E-SIM-SWAP',
+            'EV SWAP', 'EV-SWAP' => 'EV SWAP',
+            'ROUTER' => 'WIFI ROUTER',
+            'SCMB-09' => '09tk V',
+            'MV-10' => '10tk MV',
+            'SCV-14' => '14tk V',
+            'SCD-14' => '14tk D',
+            'SCV-19' => '19tk V',
+            'SC-19' => 'SC-19',
+            'SCV-19-30M' => '19tk V_30min',
+            'MV-20' => '20tk MV',
+            'SCV-29-40M' => '29tk V_40min',
+            'SCD-29-MB500' => '29tk D_500mb',
+            'SCD-29-1GB-1-DAY' => '29tk D_1gb',
+            'SCD-49-1GB-3-DAY' => '49tk D_1gb',
+            'MV50' => '50tk MV',
+            'SCD-69' => '69tk D',
             default => 'Unknown Product',
         };
+
+        Log::debug('Product label mapped', [
+            'code' => $product['code'],
+            'label' => $label,
+            'product' => $product
+        ]);
+
+        return $label;
     }
 
     protected function generateTableHtml(): string
     {
-        // Collect unique product types from rsoSale
         $productTypes = [];
         foreach ($this->rsoSale as $sale) {
             foreach ($sale->products as $product) {
@@ -225,13 +250,11 @@ class DailyReport extends Page implements HasForms
         }
         Log::debug('Product types collected', ['product_types' => array_keys($productTypes), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
 
-        // Fetch lifting data for selected date
         $liftingQuery = Lifting::whereDate('created_at', $this->selectedDate)
             ->where('house_id', $this->selectedHouse);
         $liftings = $liftingQuery->get();
         Log::debug('Raw lifting data', ['liftings_count' => $liftings->count(), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
 
-        // Process lifting data for totals including itopup and amount
         $liftingTotals = ['itopup' => 0, 'amount' => 0];
         $liftingProducts = [];
         foreach ($liftings as $lifting) {
@@ -241,10 +264,9 @@ class DailyReport extends Page implements HasForms
                 continue;
             }
 
-            // Calculate itopup and amount for lifting
             $productsSum = collect($products)->map(function ($item) {
                 $quantity = intval($item['quantity']);
-                $rate = floatval($item['rate'] ?? $item['price']);
+                $rate = floatval($item['rate'] ?? $item['price'] ?? 0);
                 return $quantity * $rate;
             });
 
@@ -254,20 +276,17 @@ class DailyReport extends Page implements HasForms
 
             foreach ($products as $product) {
                 $liftingProducts[] = [
-                    'category' => $product['category'] ?? null,
-                    'sub_category' => $product['sub_category'] ?? null,
                     'price' => $product['price'] ?? null,
                     'quantity' => $product['quantity'] ?? 0,
-                    'product_id' => $product['product_id'] ?? '',
+                    'code' => $product['code'] ?? '',
                 ];
             }
         }
 
-        // Filter valid lifting products
         $liftingProducts = array_filter($liftingProducts, function ($product) {
-            $valid = !is_null($product['category']) && !is_null($product['sub_category']) && !is_null($product['price']);
+            $valid = !is_null($product['code']) && $product['code'] !== '';
             if (!$valid) {
-                Log::warning('Skipping lifting product due to missing fields', ['product' => $product]);
+                Log::warning('Skipping lifting product due to missing code', ['product' => $product]);
             }
             return $valid;
         });
@@ -285,10 +304,15 @@ class DailyReport extends Page implements HasForms
                     $liftingTotals[$key] = 0;
                 }
                 $liftingTotals[$key] += (int) $product['quantity'];
+                Log::debug('Lifting product added to totals', [
+                    'code' => $product['code'] ?? 'missing',
+                    'key' => $key,
+                    'quantity' => $product['quantity'],
+                    'total' => $liftingTotals[$key]
+                ]);
             }
         }
 
-        // Fetch stock data for selected date, fallback to latest
         $stockQuery = Stock::whereDate('created_at', $this->selectedDate)
             ->where('house_id', $this->selectedHouse);
         $stocks = $stockQuery->get();
@@ -296,11 +320,21 @@ class DailyReport extends Page implements HasForms
             $latestStockQuery = Stock::where('house_id', $this->selectedHouse)->latest();
             $latestStock = $latestStockQuery->first();
             $stocks = $latestStock ? collect([$latestStock]) : collect([]);
-            Log::debug('No stock data for selected date, using latest', ['stock_count' => $stocks->count(), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
+            Log::debug('No stock data for selected date, using latest', [
+                'stock_count' => $stocks->count(),
+                'latest_stock_date' => $latestStock ? $latestStock->created_at : 'none',
+                'date' => $this->selectedDate,
+                'house' => $this->selectedHouse
+            ]);
         }
-        Log::debug('Raw stock data', ['stocks_count' => $stocks->count(), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
+        Log::debug('Raw stock data', [
+            'stocks_count' => $stocks->count(),
+            'stock_products' => $stocks->map(fn($stock) => $stock->products)->toArray(),
+            'stock_dates' => $stocks->pluck('created_at')->toArray(),
+            'date' => $this->selectedDate,
+            'house' => $this->selectedHouse
+        ]);
 
-        // Process stock data for totals including itopup and amount
         $stockTotals = ['itopup' => 0, 'amount' => 0];
         $stockProducts = [];
         foreach ($stocks as $stock) {
@@ -310,10 +344,9 @@ class DailyReport extends Page implements HasForms
                 continue;
             }
 
-            // Calculate itopup and amount for stock
             $productsSum = collect($products)->map(function ($item) {
                 $quantity = intval($item['quantity']);
-                $rate = floatval($item['rate'] ?? $item['price']);
+                $rate = floatval($item['rate'] ?? $item['price'] ?? 0);
                 return $quantity * $rate;
             });
 
@@ -323,25 +356,17 @@ class DailyReport extends Page implements HasForms
 
             foreach ($products as $product) {
                 $stockProducts[] = [
-                    'category' => $product['category'] ?? null,
-                    'sub_category' => $product['sub_category'] ?? null,
                     'price' => $product['price'] ?? null,
                     'quantity' => $product['quantity'] ?? 0,
-                    'product_id' => $product['product_id'] ?? '',
+                    'code' => $product['code'] ?? '',
                 ];
             }
         }
 
-        // Filter valid stock products
-        $stockProducts = array_filter($stockProducts, function ($product) {
-            $valid = !is_null($product['category']) && !is_null($product['sub_category']) && !is_null($product['price']);
-            if (!$valid) {
-                Log::warning('Skipping stock product due to missing fields', ['product' => $product]);
-            }
-            return $valid;
-        });
-
         foreach ($stockProducts as $product) {
+            if (empty($product['code'])) {
+                Log::warning('Stock product missing code, assigning unknown key', ['product' => $product]);
+            }
             $key = $this->getProductKey($product);
             if (!isset($productTypes[$key])) {
                 $productTypes[$key] = [
@@ -354,10 +379,17 @@ class DailyReport extends Page implements HasForms
                     $stockTotals[$key] = 0;
                 }
                 $stockTotals[$key] += (int) $product['quantity'];
+                Log::debug('Stock product added to totals', [
+                    'code' => $product['code'] ?? 'missing',
+                    'key' => $key,
+                    'quantity' => $product['quantity'],
+                    'total' => $stockTotals[$key]
+                ]);
             }
         }
 
-        // Define the desired header order
+        Log::debug('Stock totals', ['totals' => $stockTotals, 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
+
         $headerOrder = [
             'name',
             'mmst',
@@ -373,10 +405,11 @@ class DailyReport extends Page implements HasForms
             'scv_14_voice',
             'scd_14_data',
             'scv_19_voice',
+            'SC-19',
             'scv_19_30m_voice',
             'mv_20_voice',
-            'scd_29_mb500_data',
             'scv_29_40m_voice',
+            'scd_29_mb500_data',
             'scd_29_1gb_1day_data',
             'scd_49_1gb_3day_data',
             'mv_50_voice',
@@ -385,7 +418,6 @@ class DailyReport extends Page implements HasForms
             'amount',
         ];
 
-        // Build headers, respecting the desired order
         $headers = [];
         foreach ($headerOrder as $key) {
             if ($key === 'name') {
@@ -414,31 +446,16 @@ class DailyReport extends Page implements HasForms
                 ];
             }
         }
-
-        // Add any additional products not in the headerOrder
-        foreach ($productTypes as $key => $info) {
-            if (!in_array($key, $headerOrder) && !str_starts_with($key, 'unknown_')) {
-                $headers[] = [
-                    'key' => $key,
-                    'label' => $info['label'],
-                    'align' => 'right',
-                ];
-            }
-        }
         Log::debug('Headers generated', ['headers' => array_column($headers, 'key'), 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
 
-        // Fetch the house name dynamically
         $houseName = $this->selectedHouse ? House::find($this->selectedHouse)?->name ?? 'Unknown House' : 'Select a House';
 
-        // Check if there's any data to display
         if (empty($this->rsos) && empty($liftingProducts) && empty($stockProducts)) {
             return '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">No data available for ' . 'house <em>' . htmlspecialchars($houseName) .'</em> date '. Carbon::parse($this->selectedDate)->toFormattedDayDateString() . '</div>';
         }
 
         $html = '<div class="w-full mx-auto shadow-md rounded-lg p-6">';
         $html .= '<div class="flex justify-between items-center mb-4">';
-        // Fetch the house name dynamically
-        $houseName = $this->selectedHouse ? House::find($this->selectedHouse)?->name ?? 'Unknown House' : 'Select a House';
         $html .= '<h1 class="text-2xl font-bold">' . htmlspecialchars($houseName) . ' - Daily Summary Sheet</h1>';
         $html .= '<h1 class="text-2xl font-bold">Date: ' .Carbon::parse($this->selectedDate)->toFormattedDayDateString().'</h1>';
         $html .= '</div>';
@@ -447,7 +464,6 @@ class DailyReport extends Page implements HasForms
         $html .= '<table class="w-full border-collapse border border-gray-300">';
         $html .= '<thead><tr>';
 
-        // Generate dynamic headers
         foreach ($headers as $header) {
             $html .= '<th class="border border-gray-300 px-4 py-2 text-' . htmlspecialchars($header['align']) . '">';
             $html .= htmlspecialchars($header['label']);
@@ -456,7 +472,6 @@ class DailyReport extends Page implements HasForms
 
         $html .= '</tr></thead><tbody>';
 
-        // Loop through RSOs
         foreach ($this->rsos as $rso) {
             $html .= '<tr>';
             foreach ($headers as $header) {
@@ -468,7 +483,6 @@ class DailyReport extends Page implements HasForms
             $html .= '</tr>';
         }
 
-        // Calculate and display totals (excluding itopup and amount)
         $grandTotals = array_fill_keys(array_column($headers, 'key'), 0);
         foreach ($this->rsos as $rso) {
             foreach ($grandTotals as $key => $value) {
@@ -487,7 +501,6 @@ class DailyReport extends Page implements HasForms
         }
         $html .= '</tr>';
 
-        // Lifting row with dynamic data
         $html .= '<tr><td class="border border-gray-300 px-4 py-2">Lifting</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
@@ -499,7 +512,6 @@ class DailyReport extends Page implements HasForms
         }
         $html .= '</tr>';
 
-        // Stock row with dynamic data
         $html .= '<tr><td class="border border-gray-300 px-4 py-2">Stock</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
@@ -511,9 +523,9 @@ class DailyReport extends Page implements HasForms
         }
         $html .= '</tr>';
 
-//        $html .= '</tbody></table></div>';
-//        $html .= '<div class="text-center mt-4 text-gray-500">Page 1</div>';
-//        $html .= '</div>';
+        $html .= '</tbody></table></div>';
+        $html .= '<div class="text-center mt-4 text-gray-500">Page 1</div>';
+        $html .= '</div>';
 
         return $html;
     }

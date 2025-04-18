@@ -5,6 +5,7 @@ namespace App\Observers;
 use Carbon\Carbon;
 use App\Models\Stock;
 use App\Models\Lifting;
+use Illuminate\Support\Facades\Log;
 
 class LiftingObserver
 {
@@ -178,16 +179,23 @@ class LiftingObserver
 
             foreach ($stockProducts as &$existingProduct) {
                 if ($existingProduct['product_id'] === $newProduct['product_id']) {
-                    // ✅ সরাসরি কোয়ান্টিটি আপডেট করা হবে
+                    // ✅ সরাসরি কোয়ান্টিটি এবং অন্যান্য ফিল্ড আপডেট করা হবে
                     $existingProduct['quantity'] += $newProduct['quantity'];
                     $existingProduct['lifting_price'] = $newProduct['lifting_price'];
                     $existingProduct['price'] = $newProduct['price'];
+                    $existingProduct['code'] = $newProduct['code'] ?? $existingProduct['code'] ?? ''; // Preserve or set code
                     $found = true;
+                    Log::debug('Updated stock product', [
+                        'product_id' => $existingProduct['product_id'],
+                        'code' => $existingProduct['code'],
+                        'quantity' => $existingProduct['quantity']
+                    ]);
                     break;
                 }
             }
 
             if (!$found) {
+                // ✅ নতুন প্রোডাক্টে code সহ সব ফিল্ড যোগ করা
                 $stockProducts[] = [
                     'product_id'    => $newProduct['product_id'],
                     'category'      => $newProduct['category'],
@@ -195,13 +203,18 @@ class LiftingObserver
                     'quantity'      => $newProduct['quantity'],
                     'lifting_price' => $newProduct['lifting_price'],
                     'price'         => $newProduct['price'],
+                    'code'          => $newProduct['code'] ?? '',
                 ];
+                Log::debug('Added new stock product', [
+                    'product_id' => $newProduct['product_id'],
+                    'code' => $newProduct['code'] ?? 'missing',
+                    'quantity' => $newProduct['quantity']
+                ]);
             }
         }
 
         return $stockProducts;
     }
-
 
     /**
      * ✅ স্টক থেকে ডিলিট হওয়া লিফটিংয়ের ডাটা বাদ দেবে

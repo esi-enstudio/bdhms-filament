@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property mixed $return_itopup
  * @property mixed $itopup
  * @property mixed $products
+ * @method static whereDate(string $string, $selectedDate)
  */
 class RsoSales extends Model
 {

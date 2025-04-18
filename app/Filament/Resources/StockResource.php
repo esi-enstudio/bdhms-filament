@@ -52,6 +52,9 @@ class StockResource extends Resource
                         ->schema([
                             Hidden::make('category'),
                             Hidden::make('sub_category'),
+                            Hidden::make('code'),
+
+
                             Select::make('product_id')
                                 ->label('Name')
                                 ->live()
@@ -71,10 +74,9 @@ class StockResource extends Resource
                                         if($product){
                                             $set('lifting_price', $product->lifting_price);
                                             $set('price', $product->price);
-
-                                            // Save category directly from product table
                                             $set('category', $product->category);
                                             $set('sub_category', $product->sub_category);
+                                            $set('code', $product->code);
                                         }
                                     }
                                 })

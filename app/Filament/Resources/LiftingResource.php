@@ -160,18 +160,17 @@ class LiftingResource extends Resource
                                         if($product){
                                             $set('lifting_price', $product->lifting_price);
                                             $set('price', $product->price);
-
-                                            // Save category directly from product table
                                             $set('category', $product->category);
                                             $set('sub_category', $product->sub_category);
+                                            $set('code', $product->code);
                                         }
                                     }
                                 })
                                 ->options(fn() => Product::where('status','active')->pluck('code','id')),
 
                             Hidden::make('category'),
-
                             Hidden::make('sub_category'),
+                            Hidden::make('code'),
 
                             TextInput::make('quantity')
                                 ->numeric()
@@ -180,7 +179,6 @@ class LiftingResource extends Resource
                                 ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? $get('lifting_price').'x'.$get('quantity').' = '. number_format(round($get('lifting_price') * $get('quantity'))).' | '.$get('price').'x'.$get('quantity').' = '. number_format(round($get('price') * $get('quantity'))): ''),
 
                             Hidden::make('lifting_price'),
-
                             Hidden::make('price'),
 
                             Select::make('mode')

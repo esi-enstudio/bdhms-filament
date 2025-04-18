@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\RsoLiftingResource\Pages;
 use App\Filament\Resources\RsoLiftingResource\RelationManagers;
 use App\Models\House;
+use App\Models\Lifting;
 use App\Models\Product;
 use App\Models\Rso;
 use App\Models\RsoLifting;
@@ -97,12 +98,39 @@ class RsoLiftingResource extends Resource
                             ->schema([
                                 Hidden::make('category'),
                                 Hidden::make('sub_category'),
+                                Hidden::make('code'),
 
                                 Select::make('product_id')
                                     ->label('Name')
                                     ->live()
-                                    ->afterStateUpdated(function(Get $get, Set $set){
-                                        $productId = intval($get('product_id'));
+                                    ->searchable()
+                                    ->allowHtml() // Enable HTML rendering for badges
+                                    ->afterStateUpdated(function(Get $get, Set $set, $state){
+                                        $productId = intval($state);
+
+                                        // Check if the product_id exists in the products array of any Lifting record
+                                        $lifting = Lifting::whereJsonContains('products', ['product_id' => $productId])
+                                            ->orWhereJsonContains('products', ['product_id' => (string)$productId]) // Handle string IDs if applicable
+                                            ->first();
+
+                                        if (!$lifting) {
+                                            // Notify user if product is not found in Lifting table's products array
+                                            Notification::make()
+                                                ->title('Product Unavailable')
+                                                ->body('The selected product is not available in the lifting records.')
+                                                ->danger()
+                                                ->send();
+
+                                            // Reset the product_id and related fields
+                                            $set('product_id', null);
+                                            $set('category', null);
+                                            $set('sub_category', null);
+                                            $set('code', null);
+                                            $set('lifting_price', null);
+                                            $set('price', null);
+                                            $set('quantity', null);
+                                            return;
+                                        }
 
                                         // ✅ প্রোডাক্ট ডাটা সেট করা
                                         $product = Product::find($productId);
@@ -111,11 +139,37 @@ class RsoLiftingResource extends Resource
                                             // Save category directly from product table
                                             $set('category', $product->category);
                                             $set('sub_category', $product->sub_category);
+                                            $set('code', $product->code);
                                             $set('lifting_price', $product->lifting_price);
                                             $set('price', $product->price);
                                         }
                                     })
-                                    ->options(fn() => Product::where('status','active')->pluck('code','id')),
+                                    ->options(function (){
+                                        // Get all product_ids from Lifting table's products array
+                                        $availableProductIds = Lifting::query()
+                                            ->get()
+                                            ->pluck('products')
+                                            ->flatten(1)
+                                            ->pluck('product_id')
+                                            ->map(fn ($id) => (string)$id) // Ensure string comparison
+                                            ->unique()
+                                            ->toArray();
+
+                                        // Get only active products that are available in Lifting
+                                        $products = Product::where('status', 'active')
+                                            ->whereIn('id', $availableProductIds)
+                                            ->get();
+
+                                        // Build options with tick mark badges
+                                        $options = [];
+                                        foreach ($products as $product) {
+                                            // All products here are available, so include the tick mark badge
+                                            $label = $product->code ?? 'Product ' . $product->id;
+                                            $options[$product->id] = $label;
+                                        }
+
+                                        return $options;
+                                    }),
 
                                 TextInput::make('quantity')
                                     ->numeric()
