@@ -77,6 +77,28 @@ class RsoSalesResource extends Resource
                                 )
                                 ->afterStateUpdated(function (Get $get, Set $set, ?string $state){
                                     $rsoId = intval($state);
+                                    
+                                    // Reset all product_id fields in the products repeater
+                                    $products = $get('products') ?? [];
+                                    $updatedProducts = array_map(function ($product) {
+                                        return array_merge($product, [
+                                            'product_id' => null,
+                                            'rate' => null,
+                                            'quantity' => null,
+                                            'category' => null,
+                                            'sub_category' => null,
+                                            'code' => null,
+                                            'retailer_price' => null,
+                                            'lifting_price' => null,
+                                            'price' => null,
+                                        ]);
+                                    }, $products);
+
+                                    $set('products', $updatedProducts);
+
+
+
+
 
                                     // ✅ RSO স্টক চেক করুন
                                     $rsoStock = RsoStock::where('rso_id', $rsoId)
@@ -112,22 +134,27 @@ class RsoSalesResource extends Resource
                                     ->live()
                                     ->searchable()
                                     ->options(function (Get $get) {
-                                        $houseId = intval($get('house_id'));
-                                        $rsoId = intval($get('rso_id'));
+                                        $houseId = intval($get('../../house_id'));
+                                        $rsoId = intval($get('../../rso_id'));
 
                                         // Return empty options if house_id or rso_id is not set
                                         if (!$houseId || !$rsoId) {
                                             return [];
                                         }
 
-                                        // Get product_ids from RsoStock for the selected house_id and rso_id
-                                        $availableProductIds = RsoStock::query()
-                                            ->where('house_id', $houseId)
+                                        // Get the latest RsoStock record for the selected house_id and rso_id
+                                        $rsoStock = RsoStock::where('house_id', $houseId)
                                             ->where('rso_id', $rsoId)
                                             ->latest()
-                                            ->get()
-                                            ->pluck('products')
-                                            ->flatten(1)
+                                            ->first();
+
+                                        // Return empty options if no stock is found
+                                        if (!$rsoStock) {
+                                            return [];
+                                        }
+
+                                        // Extract product_ids from the RsoStock products JSON
+                                        $availableProductIds = collect($rsoStock->products)
                                             ->pluck('product_id')
                                             ->map(fn ($id) => (string)$id) // Ensure string comparison
                                             ->unique()
@@ -288,6 +315,48 @@ class RsoSalesResource extends Resource
                 Group::make()
                     ->columnSpan(1)
                     ->schema([
+                        Section::make('Given / Remaining')
+                            ->schema([
+                                Placeholder::make('sale_given')
+                                    ->label('')
+                                    ->content(function (Get $get) {
+                                        $houseId = intval($get('house_id'));
+
+                                        // Get today's sale-given RSO IDs
+                                        $givenRsoIds = RsoSales::whereDate('created_at', Carbon::today())
+                                            ->whereNotNull('rso_id')
+                                            ->pluck('rso_id')
+                                            ->toArray();
+
+                                        // Stock Given: Last 3 digits
+                                        $stockGiven = Rso::whereIn('id', $givenRsoIds)
+                                            ->where('house_id', $houseId)
+                                            ->pluck('itop_number')
+                                            ->map(fn($num) => substr($num, -3))
+                                            ->implode(', ');
+                                        $stockGivenCount = count(array_filter(array_map('trim', explode(',', $stockGiven))));
+
+                                        // Rest Of: Last 3 digits
+                                        $restOf = Rso::whereNotIn('id', $givenRsoIds)
+                                            ->where('house_id', $houseId)
+                                            ->pluck('itop_number')
+                                            ->map(fn($num) => substr($num, -3))
+                                            ->implode(', ');
+                                        $restOfCount = count(array_filter(array_map('trim', explode(',', $restOf))));
+
+                                        $html = "<div style='margin-bottom:1rem;'>";
+                                        $html .= "<strong>Sale Given (".$stockGivenCount.")</strong><br>";
+                                        $html .= $stockGiven;
+                                        $html .= "</div>";
+                                        $html .= "<div><strong>Rest Of (".$restOfCount.")</strong><br>";
+                                        $html .= $restOf;
+                                        $html .= "</div>";
+
+                                        return new HtmlString($html);
+                                    })
+                                    ->columnSpanFull(),
+                            ]),
+
                         Section::make('Current Stock')
                             ->schema([
                                 Placeholder::make('Overview')

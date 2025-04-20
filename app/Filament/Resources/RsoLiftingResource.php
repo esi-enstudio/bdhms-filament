@@ -104,16 +104,15 @@ class RsoLiftingResource extends Resource
                                     ->label('Name')
                                     ->live()
                                     ->searchable()
-                                    ->allowHtml() // Enable HTML rendering for badges
                                     ->afterStateUpdated(function(Get $get, Set $set, $state){
                                         $productId = intval($state);
 
                                         // Check if the product_id exists in the products array of any Lifting record
-                                        $lifting = Lifting::whereJsonContains('products', ['product_id' => $productId])
+                                        $stock = Stock::whereJsonContains('products', ['product_id' => $productId])
                                             ->orWhereJsonContains('products', ['product_id' => (string)$productId]) // Handle string IDs if applicable
                                             ->first();
 
-                                        if (!$lifting) {
+                                        if (!$stock) {
                                             // Notify user if product is not found in Lifting table's products array
                                             Notification::make()
                                                 ->title('Product Unavailable')
@@ -198,6 +197,48 @@ class RsoLiftingResource extends Resource
                 Group::make()
                     ->columnSpan(1)
                     ->schema([
+                        Section::make('Today Stock Given')
+                            ->schema([
+                                Placeholder::make('stock_given')
+                                    ->label('')
+                                    ->content(function (Get $get) {
+                                        $houseId = intval($get('house_id'));
+
+                                        // Get today's stock-given RSO IDs
+                                        $givenRsoIds = RsoLifting::whereDate('created_at', Carbon::today())
+                                            ->whereNotNull('rso_id')
+                                            ->pluck('rso_id')
+                                            ->toArray();
+
+                                        // Stock Given: Last 3 digits
+                                        $stockGiven = Rso::whereIn('id', $givenRsoIds)
+                                            ->where('house_id', $houseId)
+                                            ->pluck('itop_number')
+                                            ->map(fn($num) => substr($num, -3))
+                                            ->implode(', ');
+                                        $stockGivenCount = count(array_filter(array_map('trim', explode(',', $stockGiven))));
+
+                                        // Rest Of: Last 3 digits
+                                        $restOf = Rso::whereNotIn('id', $givenRsoIds)
+                                            ->where('house_id', $houseId)
+                                            ->pluck('itop_number')
+                                            ->map(fn($num) => substr($num, -3))
+                                            ->implode(', ');
+                                        $restOfCount = count(array_filter(array_map('trim', explode(',', $restOf))));
+
+                                        $html = "<div style='margin-bottom:1rem;'>";
+                                        $html .= "<strong>Stock Given (".$stockGivenCount.")</strong><br>";
+                                        $html .= $stockGiven;
+                                        $html .= "</div>";
+                                        $html .= "<div><strong>Rest Of (".$restOfCount.")</strong><br>";
+                                        $html .= $restOf;
+                                        $html .= "</div>";
+
+                                        return new HtmlString($html);
+                                    })
+                                    ->columnSpanFull(),
+                            ]),
+
                         Section::make('Overview')
                             ->schema([
                                 Placeholder::make('Overview')

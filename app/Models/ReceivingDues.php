@@ -18,7 +18,8 @@ class ReceivingDues extends Model
     protected $with = ['house'];
 
     protected $casts = [
-        'reports' => 'array',
+        'commissions' => 'array',
+        'items' => 'array',
     ];
 
     public function house(): BelongsTo

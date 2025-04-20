@@ -48,6 +48,24 @@ class ReceivingDuesResource extends Resource
                                             });
                                     }),
 
+                                TextInput::make('daily_report')
+                                    ->numeric()
+                                    ->live(onBlur: true)
+                                    ->required(),
+
+                                TableRepeater::make('commissions')
+                                    ->reorderable()
+                                    ->cloneable()
+                                    ->schema([
+                                        TextInput::make('title')
+                                            ->required(),
+
+                                        TextInput::make('amount')
+                                            ->numeric()
+                                            ->live(onBlur: true)
+                                            ->required(),
+                                    ]),
+
                                 TableRepeater::make('items')
                                     ->reorderable()
                                     ->cloneable()

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static create(array $array)
  * @method static first()
  * @method static latest()
+ * @method static whereJsonContains(string $string, array $array)
  */
 class Stock extends Model
 {

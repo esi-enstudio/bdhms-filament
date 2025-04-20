@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static findOrFail($id)
  * @method static select(string $string, string $string1, string $string2)
  * @method static upsert(array $users, string[] $array, string[] $array1)
+ * @method static whereNotIn(string $string)
  * @property mixed $documents
  * @property mixed $user
  * @property mixed $user_id

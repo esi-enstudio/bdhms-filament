@@ -169,7 +169,7 @@ class DailyReport extends Page implements HasForms
             'SCV-14' => 'scv_14_voice',
             'SCD-14' => 'scd_14_data',
             'SCV-19' => 'scv_19_voice',
-            'SC-19' => 'SC-19',
+            'SC-19' => 'sc-19',
             'SCV-19-30M' => 'scv_19_30m_voice',
             'MV-20' => 'mv_20_voice',
             'SCV-29-40M' => 'scv_29_40m_voice',
@@ -405,7 +405,7 @@ class DailyReport extends Page implements HasForms
             'scv_14_voice',
             'scd_14_data',
             'scv_19_voice',
-            'SC-19',
+            'sc-19',
             'scv_19_30m_voice',
             'mv_20_voice',
             'scv_29_40m_voice',
@@ -454,7 +454,7 @@ class DailyReport extends Page implements HasForms
             return '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">No data available for ' . 'house <em>' . htmlspecialchars($houseName) .'</em> date '. Carbon::parse($this->selectedDate)->toFormattedDayDateString() . '</div>';
         }
 
-        $html = '<div class="w-full mx-auto shadow-md rounded-lg p-6">';
+        $html = '<div class="w-full mx-auto shadow-md rounded-lg px-5">';
         $html .= '<div class="flex justify-between items-center mb-4">';
         $html .= '<h1 class="text-2xl font-bold">' . htmlspecialchars($houseName) . ' - Daily Summary Sheet</h1>';
         $html .= '<h1 class="text-2xl font-bold">Date: ' .Carbon::parse($this->selectedDate)->toFormattedDayDateString().'</h1>';

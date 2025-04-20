@@ -12,10 +12,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('daily_reports', function (Blueprint $table) {
+        Schema::create('receiving_dues', function (Blueprint $table) {
             $table->id();
             $table->foreignIdFor( House::class);
-            $table->json('reports');
+            $table->integer('daily_report');
+            $table->json('commissions');
+            $table->json('items');
             $table->timestamps();
         });
     }
@@ -25,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('daily_reports');
+        Schema::dropIfExists('receiving_dues');
     }
 };
