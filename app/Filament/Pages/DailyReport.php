@@ -6,6 +6,7 @@ use App\Models\House;
 use App\Models\Lifting;
 use App\Models\RsoSales;
 use App\Models\Stock;
+use App\Models\ReceivingDues;
 use Carbon\Carbon;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Grid;
@@ -283,6 +284,36 @@ class DailyReport extends Page implements HasForms
             }
         }
 
+        // Fetch I'top up and commissions from receiving_dues
+        $receivingDue = ReceivingDues::where('house_id', $this->selectedHouse)
+            ->whereDate('created_at', $this->selectedDate)
+            ->first();
+
+        $liftingItopUp = $receivingDue ? $receivingDue->daily_report : 0;
+        Log::debug('Lifting I\'top up from receiving_dues', [
+            'house_id' => $this->selectedHouse,
+            'date' => $this->selectedDate,
+            'daily_report' => $liftingItopUp,
+        ]);
+
+        // Format commissions for Amount column
+        $liftingAmount = '';
+        if ($receivingDue && !empty($receivingDue->commissions)) {
+            $liftingAmount = collect($receivingDue->commissions)
+                ->map(function ($commission) {
+                    $title = $commission['title'] ?? 'Unknown';
+                    $amount = $commission['amount'] ?? 0;
+                    return htmlspecialchars($title) . ': ' . number_format((float)$amount);
+                })
+                ->implode("<br>");
+        }
+        Log::debug('Lifting Amount from commissions', [
+            'house_id' => $this->selectedHouse,
+            'date' => $this->selectedDate,
+            'commissions' => $receivingDue ? $receivingDue->commissions : null,
+            'formatted' => $liftingAmount,
+        ]);
+
         $liftingProducts = array_filter($liftingProducts, function ($product) {
             $valid = !is_null($product['code']) && $product['code'] !== '';
             if (!$valid) {
@@ -504,9 +535,9 @@ class DailyReport extends Page implements HasForms
         $html .= '<tr><td class="border border-gray-300 px-4 py-2">Lifting</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
-                $value = $header['key'] === 'amount' ? '' : ($liftingTotals[$header['key']] ?? 0);
-                $html .= '<td class="border border-gray-300 px-4 py-2 text-right">';
-                $html .= $value === '' || $value === 0 ? '' : number_format((float)$value);
+                $value = $header['key'] === 'itopup' ? $liftingItopUp : ($header['key'] === 'amount' ? $liftingAmount : ($liftingTotals[$header['key']] ?? 0));
+                $html .= '<td class="border border-gray-300 px-4 py-2 whitespace-nowrap">';
+                $html .= $value === '' || $value === 0 ? '' : $value;
                 $html .= '</td>';
             }
         }
