@@ -284,17 +284,10 @@ class DailyReport extends Page implements HasForms
             }
         }
 
-        // Fetch I'top up and commissions from receiving_dues
+        // Fetch commissions from receiving_dues for Amount column
         $receivingDue = ReceivingDues::where('house_id', $this->selectedHouse)
             ->whereDate('created_at', $this->selectedDate)
             ->first();
-
-        $liftingItopUp = $receivingDue ? $receivingDue->daily_report : 0;
-        Log::debug('Lifting I\'top up from receiving_dues', [
-            'house_id' => $this->selectedHouse,
-            'date' => $this->selectedDate,
-            'daily_report' => $liftingItopUp,
-        ]);
 
         // Format commissions for Amount column
         $liftingAmount = '';
@@ -461,19 +454,19 @@ class DailyReport extends Page implements HasForms
                 $headers[] = [
                     'key' => 'itopup',
                     'label' => 'I\'top up',
-                    'align' => 'right',
+                    'align' => 'center',
                 ];
             } elseif ($key === 'amount') {
                 $headers[] = [
                     'key' => 'amount',
                     'label' => 'Amount',
-                    'align' => 'right',
+                    'align' => 'center',
                 ];
             } elseif (isset($productTypes[$key])) {
                 $headers[] = [
                     'key' => $key,
                     'label' => $productTypes[$key]['label'],
-                    'align' => 'right',
+                    'align' => 'center',
                 ];
             }
         }
@@ -492,7 +485,7 @@ class DailyReport extends Page implements HasForms
         $html .= '</div>';
 
         $html .= '<div class="overflow-x-auto">';
-        $html .= '<table class="w-full border-collapse border border-gray-300">';
+        $html .= '<table class="w-full border-collapse border border-gray-300 text-center">';
         $html .= '<thead><tr>';
 
         foreach ($headers as $header) {
@@ -523,31 +516,31 @@ class DailyReport extends Page implements HasForms
             }
         }
 
-        $html .= '<tr class="font-bold"><td class="border border-gray-300 px-4 py-2">Total</td>';
+        $html .= '<tr class="font-bold"><td class="border border-gray-300 px-4 py-2 text-left">Total</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
-                $value = in_array($header['key'], ['itopup', 'amount']) ? '' : ($grandTotals[$header['key']] === 0 ? '' : number_format($grandTotals[$header['key']]));
-                $html .= '<td class="border border-gray-300 px-4 py-2 text-right">' . $value . '</td>';
+                $value = $header['key'] === 'amount' ? '' : ($grandTotals[$header['key']] === 0 ? '' : number_format($grandTotals[$header['key']]));
+                $html .= '<td class="border border-gray-300 px-4 py-2">' . $value . '</td>';
             }
         }
         $html .= '</tr>';
 
-        $html .= '<tr><td class="border border-gray-300 px-4 py-2">Lifting</td>';
+        $html .= '<tr class="font-bold"><td class="border border-gray-300 px-4 py-2 text-left">Lifting</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
-                $value = $header['key'] === 'itopup' ? $liftingItopUp : ($header['key'] === 'amount' ? $liftingAmount : ($liftingTotals[$header['key']] ?? 0));
+                $value = $header['key'] === 'itopup' ? $liftingTotals['itopup'] : ($header['key'] === 'amount' ? $liftingAmount : ($liftingTotals[$header['key']] ?? 0));
                 $html .= '<td class="border border-gray-300 px-4 py-2 whitespace-nowrap">';
-                $html .= $value === '' || $value === 0 ? '' : $value;
+                $html .= $value === '' || $value === 0 ? '' : ($header['key'] === 'amount' ? $value : number_format((float)$value));
                 $html .= '</td>';
             }
         }
         $html .= '</tr>';
 
-        $html .= '<tr><td class="border border-gray-300 px-4 py-2">Stock</td>';
+        $html .= '<tr class="font-bold"><td class="border border-gray-300 px-4 py-2 text-left">Stock</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
                 $value = $header['key'] === 'amount' ? '' : ($stockTotals[$header['key']] ?? 0);
-                $html .= '<td class="border border-gray-300 px-4 py-2 text-right">';
+                $html .= '<td class="border border-gray-300 px-4 py-2">';
                 $html .= $value === '' || $value === 0 ? '' : number_format((float)$value);
                 $html .= '</td>';
             }

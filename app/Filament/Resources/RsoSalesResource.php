@@ -77,7 +77,7 @@ class RsoSalesResource extends Resource
                                 )
                                 ->afterStateUpdated(function (Get $get, Set $set, ?string $state){
                                     $rsoId = intval($state);
-                                    
+
                                     // Reset all product_id fields in the products repeater
                                     $products = $get('products') ?? [];
                                     $updatedProducts = array_map(function ($product) {
@@ -132,7 +132,6 @@ class RsoSalesResource extends Resource
                                 Select::make('product_id')
                                     ->label('Name')
                                     ->live()
-                                    ->searchable()
                                     ->options(function (Get $get) {
                                         $houseId = intval($get('../../house_id'));
                                         $rsoId = intval($get('../../rso_id'));

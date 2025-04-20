@@ -139,6 +139,7 @@ class LiftingResource extends Resource
                             Select::make('product_id')
                                 ->label('Name')
                                 ->live()
+                                ->searchable()
                                 ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? "Lifting Price: " . $get('lifting_price') : '')
                                 ->afterStateUpdated(function(Get $get, Set $set){
                                     if(empty($get('product_id'))){
