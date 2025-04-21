@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property mixed $house
  * @property mixed $reports
+ * @property mixed $items
+ * @property mixed $commissions
+ * @property mixed $house_id
  * @method static where(string $string, $selectedHouse)
  */
 class ReceivingDues extends Model

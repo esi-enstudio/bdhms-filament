@@ -17,6 +17,7 @@ use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
+use Illuminate\Database\Eloquent\Builder;
 
 class ReceivingDuesResource extends Resource
 {
@@ -57,24 +58,20 @@ class ReceivingDuesResource extends Resource
                                     ->reorderable()
                                     ->cloneable()
                                     ->schema([
-                                        TextInput::make('title')
-                                            ->required(),
+                                        TextInput::make('title'),
 
                                         TextInput::make('amount')
                                             ->numeric()
-                                            ->live(onBlur: true)
-                                            ->required(),
+                                            ->live(onBlur: true),
                                     ]),
 
                                 TableRepeater::make('items')
                                     ->reorderable()
                                     ->cloneable()
                                     ->schema([
-                                        TextInput::make('title')
-                                            ->required(),
+                                        TextInput::make('title'),
 
                                         Select::make('operator')
-                                            ->required()
                                             ->options([
                                                 '+' => 'Received',
                                                 '-' => 'Due',
@@ -82,8 +79,7 @@ class ReceivingDuesResource extends Resource
 
                                         TextInput::make('amount')
                                             ->numeric()
-                                            ->live(onBlur: true)
-                                            ->required(),
+                                            ->live(onBlur: true),
                                     ]),
                             ])
                     ]),
@@ -113,9 +109,9 @@ class ReceivingDuesResource extends Resource
                 TextColumn::make('house.name')
                     ->description(fn(ReceivingDues $dailyReport): string => $dailyReport->house->code)
                     ->sortable(),
-                TextColumn::make('reports')
+                TextColumn::make('items')
                     ->state(function (ReceivingDues $record) {
-                        return $record->reports;
+                        return $record->items;
                     })
                     ->formatStateUsing(function ($state) {
                         // If $state is a string, attempt to fix and decode
@@ -186,5 +182,10 @@ class ReceivingDuesResource extends Resource
     public static function getNavigationLabel(): string
     {
         return 'Receiving / Dues';
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->latest('created_at');
     }
 }

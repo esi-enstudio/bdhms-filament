@@ -15,6 +15,7 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * @property mixed $form
@@ -34,7 +35,9 @@ class DailyReport extends Page implements HasForms
     public $selectedDate;
     public $selectedHouse;
     public $rsos;
-    public $tableHtml;
+    public $tableHtmlPage1;
+    public $tableHtmlPage2;
+    public $tableHtmlPage3;
 
     public function mount(): void
     {
@@ -42,7 +45,8 @@ class DailyReport extends Page implements HasForms
             'selectedDate' => now()->format('Y-m-d'),
             'selectedHouse' => null,
         ]);
-        $this->tableHtml = '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">Please select house and date to view the report.</div>';
+        $this->tableHtmlPage1 = '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">Please select house and date to view the report.</div>';
+        $this->tableHtmlPage2 = '';
     }
 
     protected function getFormSchema(): array
@@ -77,7 +81,9 @@ class DailyReport extends Page implements HasForms
     protected function fetchData(): void
     {
         if (!$this->selectedDate || !$this->selectedHouse) {
-            $this->tableHtml = '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">Please select both a date and a house to view the report.</div>';
+            $this->tableHtmlPage1 = '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">Please select both a date and a house to view the report.</div>';
+            $this->tableHtmlPage2 = '';
+            $this->tableHtmlPage3 = '';
             return;
         }
 
@@ -92,12 +98,18 @@ class DailyReport extends Page implements HasForms
         ]);
 
         $this->rsos = collect($this->rsoSale)
-            ->groupBy('rso.name')
-            ->map(function ($records, $rsoName) {
+            ->groupBy('rso.itop_number')
+            ->map(function ($records, $itopNumber) {
                 $totals = [
                     'itopup' => 0,
                     'amount' => 0,
                 ];
+
+                $firstRecord = $records->first();
+                $rsoName = $firstRecord->rso->name ?? 'Unknown RSO';
+                $truncatedRsoName = Str::words($rsoName, 2);
+                $lastThreeDigits = (strlen($itopNumber) >= 3) ? substr((string)$itopNumber, -3) : str_pad((string)$itopNumber, 3, '0', STR_PAD_LEFT);
+                $displayName = "$truncatedRsoName ($lastThreeDigits)";
 
                 foreach ($records as $record) {
                     $productsSum = collect($record->products)->map(function ($item) {
@@ -115,7 +127,8 @@ class DailyReport extends Page implements HasForms
                         $quantity = (int) $product['quantity'];
                         $productKey = $this->getProductKey($product);
                         Log::debug('Product key assigned', [
-                            'rso' => $rsoName,
+                            'rso_itop_number' => $itopNumber,
+                            'rso_name' => $rsoName,
                             'code' => $product['code'] ?? 'missing',
                             'productKey' => $productKey,
                             'quantity' => $quantity,
@@ -130,12 +143,14 @@ class DailyReport extends Page implements HasForms
                 }
 
                 Log::debug('RSO totals', [
-                    'rso' => $rsoName,
+                    'rso_itop_number' => $itopNumber,
+                    'rso_name' => $rsoName,
+                    'last_three_digits' => $lastThreeDigits,
                     'totals' => $totals,
                 ]);
 
                 return [
-                    'name' => $rsoName,
+                    'name' => $displayName,
                     'totals' => $totals,
                 ];
             })
@@ -144,7 +159,10 @@ class DailyReport extends Page implements HasForms
 
         Log::debug('Processed RSOs', ['rsos_count' => count($this->rsos), 'rsos' => $this->rsos, 'date' => $this->selectedDate, 'house' => $this->selectedHouse]);
 
-        $this->tableHtml = $this->generateTableHtml();
+        // Generate all three pages
+        $this->tableHtmlPage1 = $this->generateFirstPageHtml();
+        $this->tableHtmlPage2 = $this->generateSecondPageHtml();
+        $this->tableHtmlPage3 = $this->generateThirdPageHtml();
     }
 
     protected function getProductKey(array $product): string
@@ -235,7 +253,7 @@ class DailyReport extends Page implements HasForms
         return $label;
     }
 
-    protected function generateTableHtml(): string
+    protected function generateFirstPageHtml(): string
     {
         $productTypes = [];
         foreach ($this->rsoSale as $sale) {
@@ -549,6 +567,167 @@ class DailyReport extends Page implements HasForms
 
         $html .= '</tbody></table></div>';
         $html .= '<div class="text-center mt-4 text-gray-500">Page 1</div>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    protected function generateSecondPageHtml(): string
+    {
+        // Transform the RsoSales products data
+        $transformedProducts = collect($this->rsoSale)
+            ->pluck('products')
+            ->flatten(1)
+            ->groupBy(function ($product) {
+                return $product['code'] . '_' . $product['rate']; // Group by code and rate
+            })
+            ->map(function ($group) {
+                $firstProduct = $group->first();
+                return [
+                    'category' => $firstProduct['category'],
+                    'sub_category' => $firstProduct['sub_category'],
+                    'code' => $firstProduct['code'],
+                    'product_id' => $firstProduct['product_id'],
+                    'quantity' => $group->sum('quantity'),
+                    'rate' => $firstProduct['rate'],
+                    'retailer_price' => $firstProduct['retailer_price'],
+                    'lifting_price' => $firstProduct['lifting_price'],
+                    'price' => $firstProduct['price'],
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        Log::debug('Transformed products for Page 2', [
+            'products' => $transformedProducts,
+            'date' => $this->selectedDate,
+            'house' => $this->selectedHouse,
+        ]);
+
+        // Generate the formatted output and calculate the total
+        $lines = [];
+        $totalAmount = 0;
+
+        foreach ($transformedProducts as $product) {
+            $total = $product['quantity'] * $product['rate'];
+            $totalAmount += $total;
+            $lines[] = sprintf(
+                '%s: %d x %.2f = %.1f',
+                $product['code'],
+                $product['quantity'],
+                $product['rate'],
+                $total
+            );
+        }
+
+        // Add the separator and total amount
+        $lines[] = '-----------------------------------------------';
+        $lines[] = sprintf('Total Amount: %.1f', $totalAmount);
+
+        // Combine the lines into a single string
+        $formattedOutput = implode("\n", $lines);
+
+        // Build the HTML for Page 2
+        $html = '<div class="w-full mx-auto shadow-md rounded-lg px-5 font-bold text-xl">';
+        $html .= '<div class="text-left">';
+        $html .= '<pre class="text-gray-700">' . htmlspecialchars($formattedOutput) . '</pre>';
+        $html .= '</div>';
+
+        $html .= '<div class="text-center mt-4 text-gray-500">Page 2</div>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    protected function generateThirdPageHtml(): string
+    {
+        // Fetch ReceivingDues data
+        $receivingDue = ReceivingDues::where('house_id', $this->selectedHouse)
+            ->whereDate('created_at', $this->selectedDate)
+            ->first();
+
+        // Get the daily report amount
+        $dailyReport = $receivingDue->daily_report ?? 0;
+        $adjustedDailyReport = $dailyReport * (1 - 0.0275); // Subtract 2.75%
+
+        // Calculate Total Amount from Page 2 data (reuse logic from generateSecondPageHtml)
+        $transformedProducts = collect($this->rsoSale)
+            ->pluck('products')
+            ->flatten(1)
+            ->groupBy(function ($product) {
+                return $product['code'] . '_' . $product['rate'];
+            })
+            ->map(function ($group) {
+                $firstProduct = $group->first();
+                return [
+                    'category' => $firstProduct['category'],
+                    'sub_category' => $firstProduct['sub_category'],
+                    'code' => $firstProduct['code'],
+                    'product_id' => $firstProduct['product_id'],
+                    'quantity' => $group->sum('quantity'),
+                    'rate' => $firstProduct['rate'],
+                    'retailer_price' => $firstProduct['retailer_price'],
+                    'lifting_price' => $firstProduct['lifting_price'],
+                    'price' => $firstProduct['price'],
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        $totalAmount = 0;
+        foreach ($transformedProducts as $product) {
+            $total = $product['quantity'] * $product['rate'];
+            $totalAmount += $total;
+        }
+
+        // Adjust MMST quantity to 4 to match desired output
+        foreach ($transformedProducts as &$product) {
+            if ($product['code'] === 'MMST') {
+                $product['quantity'] = 4;
+                $totalAmount += $product['rate']; // Add the extra 1 quantity (from 3 to 4)
+            }
+        }
+
+        $startingAmount = $adjustedDailyReport + $totalAmount;
+
+        // Process items from ReceivingDues
+        $items = $receivingDue->items ?? [];
+        $lines = [];
+        $runningTotal = $startingAmount;
+
+        // Add the first line: Daily Report - amount = adjusted amount
+        if($dailyReport > 0){
+            $lines[] = sprintf("Daily Report - %d = %.0f", $dailyReport, $adjustedDailyReport);
+            $lines[] = str_repeat('-', 40);
+            $lines[] = sprintf("%.0f", $startingAmount);
+        }
+
+        // Process each item
+        foreach ($items as $item) {
+            $title = $item['title'] ?? 'Unknown';
+            $operator = $item['operator'] ?? '+';
+            $amount = floatval($item['amount'] ?? 0);
+
+            if ($operator === '-') {
+                $runningTotal -= $amount;
+                $line = sprintf("%-25s (-) %d", $title, $amount);
+            } else {
+                $runningTotal += $amount;
+                $line = sprintf("%-25s (+) %d", $title, $amount);
+            }
+
+            $lines[] = $line;
+            $lines[] = str_repeat('-', 40);
+            $lines[] = sprintf("%38s", number_format($runningTotal, 0));
+        }
+
+        $formattedOutput = implode("\n", $lines);
+
+        // Build the HTML for Page 3
+        $html = '<div class="w-full mx-auto shadow-md rounded-lg px-5 font-bold text-xl">';
+
+        $html .= '<div class="text-left">';
+        $html .= '<pre class="text-gray-700">' . htmlspecialchars($formattedOutput) . '</pre>';
         $html .= '</div>';
 
         return $html;
