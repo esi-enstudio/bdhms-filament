@@ -566,7 +566,6 @@ class DailyReport extends Page implements HasForms
         $html .= '</tr>';
 
         $html .= '</tbody></table></div>';
-        $html .= '<div class="text-center mt-4 text-gray-500">Page 1</div>';
         $html .= '</div>';
 
         return $html;
@@ -604,39 +603,57 @@ class DailyReport extends Page implements HasForms
             'house' => $this->selectedHouse,
         ]);
 
-        // Generate the formatted output and calculate the total
-        $lines = [];
+        // Calculate the total amount
         $totalAmount = 0;
-
         foreach ($transformedProducts as $product) {
             $total = $product['quantity'] * $product['rate'];
             $totalAmount += $total;
-            $lines[] = sprintf(
-                '%s: %d x %.2f = %.1f',
-                $product['code'],
-                $product['quantity'],
-                $product['rate'],
-                $total
-            );
         }
 
-        // Add the separator and total amount
-        $lines[] = '-----------------------------------------------';
-        $lines[] = sprintf('Total Amount: %.1f', $totalAmount);
-
-        // Combine the lines into a single string
-        $formattedOutput = implode("\n", $lines);
-
-        // Build the HTML for Page 2
-        $html = '<div class="w-full mx-auto shadow-md rounded-lg px-5 font-bold text-xl">';
+        // Build the HTML for Page 2 using a table with borders
+        $html = '<div class="w-full mx-auto shadow-md rounded-lg font-bold text-md">';
         $html .= '<div class="text-left">';
-        $html .= '<pre class="text-gray-700">' . htmlspecialchars($formattedOutput) . '</pre>';
+
+        // Start the table with borders
+        $html .= '<table class="border-collapse border border-gray-300">';
+
+        // Table headers
+        $html .= '<thead>';
+        $html .= '<tr>';
+        $html .= '<th class="border border-gray-300 p-2 text-left">Product</th>';
+        $html .= '<th class="border border-gray-300 p-2 text-right">Quantity</th>';
+        $html .= '<th class="border border-gray-300 p-2 text-right">Rate</th>';
+        $html .= '<th class="border border-gray-300 p-2 text-right">Total</th>';
+        $html .= '</tr>';
+        $html .= '</thead>';
+
+        // Table body
+        $html .= '<tbody>';
+        foreach ($transformedProducts as $product) {
+            $total = $product['quantity'] * $product['rate'];
+            $html .= '<tr>';
+            $html .= '<td class="border border-gray-300 p-2 text-left">' . htmlspecialchars($product['code']) . '</td>';
+            $html .= '<td class="border border-gray-300 p-2 text-right">' . $product['quantity'] . '</td>';
+            $html .= '<td class="border border-gray-300 p-2 text-right">' . number_format($product['rate']) . '</td>';
+            $html .= '<td class="border border-gray-300 p-2 text-right">' . number_format($total) . '</td>';
+            $html .= '</tr>';
+        }
+
+        // Add total row if totalAmount > 0
+        $html .= '<tr>';
+        $html .= '<td colspan="3" class="border border-gray-300 p-2 text-right font-bold">Total Amount:</td>';
+        $html .= '<td class="border border-gray-300 p-2 text-right font-bold">' . number_format($totalAmount) . '</td>';
+        $html .= '</tr>';
+
+        $html .= '</tbody>';
+        $html .= '</table>';
+
+        $html .= '</div>';
         $html .= '</div>';
 
-        $html .= '<div class="text-center mt-4 text-gray-500">Page 2</div>';
-        $html .= '</div>';
+        if ($totalAmount > 0){return $html;}
 
-        return $html;
+        return false;
     }
 
     protected function generateThirdPageHtml(): string
@@ -680,29 +697,24 @@ class DailyReport extends Page implements HasForms
             $totalAmount += $total;
         }
 
-        // Adjust MMST quantity to 4 to match desired output
-        foreach ($transformedProducts as &$product) {
-            if ($product['code'] === 'MMST') {
-                $product['quantity'] = 4;
-                $totalAmount += $product['rate']; // Add the extra 1 quantity (from 3 to 4)
-            }
-        }
-
         $startingAmount = $adjustedDailyReport + $totalAmount;
 
-        // Process items from ReceivingDues
-        $items = $receivingDue->items ?? [];
-        $lines = [];
+        // Build table rows
+        $rows = [];
         $runningTotal = $startingAmount;
 
-        // Add the first line: Daily Report - amount = adjusted amount
-        if($dailyReport > 0){
-            $lines[] = sprintf("Daily Report - %d = %.0f", $dailyReport, $adjustedDailyReport);
-            $lines[] = str_repeat('-', 40);
-            $lines[] = sprintf("%.0f", $startingAmount);
+        // Add the first row: Daily Report
+        if ($dailyReport > 0) {
+            $rows[] = [
+                'description' => "Daily Report - {$dailyReport}",
+                'operator' => '',
+                'amount' => number_format($adjustedDailyReport, 0),
+                'running_total' => number_format($runningTotal, 0),
+            ];
         }
 
-        // Process each item
+        // Process each item from ReceivingDues
+        $items = $receivingDue->items ?? [];
         foreach ($items as $item) {
             $title = $item['title'] ?? 'Unknown';
             $operator = $item['operator'] ?? '+';
@@ -710,24 +722,46 @@ class DailyReport extends Page implements HasForms
 
             if ($operator === '-') {
                 $runningTotal -= $amount;
-                $line = sprintf("%-25s (-) %d", $title, $amount);
+                $operatorDisplay = '(-)';
             } else {
                 $runningTotal += $amount;
-                $line = sprintf("%-25s (+) %d", $title, $amount);
+                $operatorDisplay = '(+)';
             }
 
-            $lines[] = $line;
-            $lines[] = str_repeat('-', 40);
-            $lines[] = sprintf("%38s", number_format($runningTotal, 0));
+            $rows[] = [
+                'description' => $title,
+                'operator' => $operatorDisplay,
+                'amount' => number_format($amount, 0),
+                'running_total' => number_format($runningTotal, 0),
+            ];
         }
 
-        $formattedOutput = implode("\n", $lines);
-
         // Build the HTML for Page 3
-        $html = '<div class="w-full mx-auto shadow-md rounded-lg px-5 font-bold text-xl">';
-
+        $html = '<div class="w-full mx-auto shadow-md rounded-lg font-bold text-md">';
         $html .= '<div class="text-left">';
-        $html .= '<pre class="text-gray-700">' . htmlspecialchars($formattedOutput) . '</pre>';
+        $html .= '<table class="border-collapse border border-gray-300">';
+        $html .= '<thead>';
+        $html .= '<tr>';
+        $html .= '<th class="border border-gray-300 px-4 p-2 text-left">Description</th>';
+        $html .= '<th class="border border-gray-300 px-4 p-2 text-center">Operation</th>';
+        $html .= '<th class="border border-gray-300 px-4 p-2 text-right">Amount</th>';
+        $html .= '<th class="border border-gray-300 px-4 p-2 text-right">Running Total</th>';
+        $html .= '</tr>';
+        $html .= '</thead>';
+        $html .= '<tbody>';
+
+        foreach ($rows as $row) {
+            $html .= '<tr>';
+            $html .= '<td class="border border-gray-300 px-4 p-2">' . htmlspecialchars($row['description']) . '</td>';
+            $html .= '<td class="border border-gray-300 px-4 p-2 text-center">' . htmlspecialchars($row['operator']) . '</td>';
+            $html .= '<td class="border border-gray-300 px-4 p-2 text-right">' . htmlspecialchars($row['amount']) . '</td>';
+            $html .= '<td class="border border-gray-300 px-4 p-2 text-right">' . htmlspecialchars($row['running_total']) . '</td>';
+            $html .= '</tr>';
+        }
+
+        $html .= '</tbody>';
+        $html .= '</table>';
+        $html .= '</div>';
         $html .= '</div>';
 
         return $html;

@@ -5,15 +5,10 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\RsoSalesResource\Pages;
 use App\Models\House;
 use App\Models\Product;
-use App\Models\Retailer;
 use App\Models\Rso;
-use App\Models\RsoLifting;
 use App\Models\RsoSales;
 use App\Models\RsoStock;
-use App\Rules\ProductNotInStockRule;
 use Carbon\Carbon;
-use Closure;
-use Filament\Forms;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -30,9 +25,8 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Collection;
+use Illuminate\Support\Arr;
 use Illuminate\Support\HtmlString;
-use Illuminate\Validation\ValidationException;
 
 class RsoSalesResource extends Resource
 {
@@ -72,13 +66,12 @@ class RsoSalesResource extends Resource
                                     ->select('id','itop_number','name')
                                     ->get()
                                     ->mapWithKeys(function ($item) {
-                                        return [$item->id => $item->itop_number . ' - ' . $item->name]; // Concatenate fields
+                                        return [$item->id => $item->itop_number . ' - ' . $item->name];
                                     })
                                 )
                                 ->afterStateUpdated(function (Get $get, Set $set, ?string $state){
                                     $rsoId = intval($state);
 
-                                    // Reset all product_id fields in the products repeater
                                     $products = $get('products') ?? [];
                                     $updatedProducts = array_map(function ($product) {
                                         return array_merge($product, [
@@ -96,18 +89,12 @@ class RsoSalesResource extends Resource
 
                                     $set('products', $updatedProducts);
 
-
-
-
-
-                                    // ✅ RSO স্টক চেক করুন
                                     $rsoStock = RsoStock::where('rso_id', $rsoId)
                                         ->latest()
                                         ->first();
 
                                     if (!$rsoStock)
                                     {
-                                        // ✅ Repeater-এর products ফিল্ড খালি করে দিন
                                         $set('products', []);
                                         $set('rso_id', '');
 
@@ -132,39 +119,34 @@ class RsoSalesResource extends Resource
                                 Select::make('product_id')
                                     ->label('Name')
                                     ->live()
+                                    ->required()
                                     ->options(function (Get $get) {
                                         $houseId = intval($get('../../house_id'));
                                         $rsoId = intval($get('../../rso_id'));
 
-                                        // Return empty options if house_id or rso_id is not set
                                         if (!$houseId || !$rsoId) {
                                             return [];
                                         }
 
-                                        // Get the latest RsoStock record for the selected house_id and rso_id
                                         $rsoStock = RsoStock::where('house_id', $houseId)
                                             ->where('rso_id', $rsoId)
                                             ->latest()
                                             ->first();
 
-                                        // Return empty options if no stock is found
                                         if (!$rsoStock) {
                                             return [];
                                         }
 
-                                        // Extract product_ids from the RsoStock products JSON
                                         $availableProductIds = collect($rsoStock->products)
                                             ->pluck('product_id')
-                                            ->map(fn ($id) => (string)$id) // Ensure string comparison
+                                            ->map(fn ($id) => (string)$id)
                                             ->unique()
                                             ->toArray();
 
-                                        // Get only active products that are available in RsoStock
                                         $products = Product::where('status', 'active')
                                             ->whereIn('id', $availableProductIds)
                                             ->get();
 
-                                        // Build options with product codes
                                         $options = [];
                                         foreach ($products as $product) {
                                             $label = $product->code ?? 'Product ' . $product->id;
@@ -183,7 +165,6 @@ class RsoSalesResource extends Resource
                                             return;
                                         }
 
-                                        // Check RsoStock for the selected house_id and rso_id
                                         $rsoStock = RsoStock::where('house_id', $houseId)
                                             ->where('rso_id', $rsoId)
                                             ->latest()
@@ -215,7 +196,6 @@ class RsoSalesResource extends Resource
                                             return;
                                         }
 
-                                        // Set product data
                                         $product = Product::find($productId);
 
                                         if ($product) {
@@ -231,14 +211,13 @@ class RsoSalesResource extends Resource
 
                                 TextInput::make('quantity')
                                     ->numeric()
-                                    ->required(fn (callable $get): bool => intval($get('product_id')) !== 0)
+                                    ->required()
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(function (Get $get, Set $set) {
                                         $productId = intval($get('product_id'));
                                         $rsoId = intval($get('../../rso_id'));
                                         $qty = intval($get('quantity'));
 
-                                        // Check RsoStock
                                         $rsoStock = RsoStock::where('rso_id', $rsoId)->latest()->first();
 
                                         if ($rsoStock) {
@@ -258,13 +237,15 @@ class RsoSalesResource extends Resource
 
                                 TextInput::make('rate')
                                     ->live(onBlur: true)
-                                    ->required(fn (callable $get): bool => intval($get('product_id')) !== 0)
+                                    ->required()
                                     ->numeric(),
 
                                 Hidden::make('retailer_price'),
                                 Hidden::make('lifting_price'),
                                 Hidden::make('price'),
-                            ]),
+                            ])
+                            ->default([])
+                            ->dehydrated(true), // Always include the products field in the form data
 
                         TextInput::make('itopup')
                             ->live(onBlur: true)
@@ -281,14 +262,12 @@ class RsoSalesResource extends Resource
                                 $rsoId = intval($get('rso_id'));
                                 $itopAmount = intval($state);
 
-                                // ✅ RSO স্টক চেক করুন
                                 $rsoStock = RsoStock::where('rso_id', $rsoId)
                                     ->latest()
                                     ->first();
 
                                 if ($rsoStock && $itopAmount > $rsoStock->itopup)
                                 {
-                                    // ✅ Repeater-এর products ফিল্ড খালি করে দিন
                                     $set('itopup', '');
 
                                     Notification::make()
@@ -298,14 +277,12 @@ class RsoSalesResource extends Resource
                                         ->send();
                                 }
 
-                                // ✅ Repeater-এর products ফিল্ড খালি করে দিন
                                 $set('return_itopup', ($rsoStock->itopup - $itopAmount));
                             }),
 
                         TextInput::make('ta')
                             ->label('Transportation Allowance (TA)')
                             ->live(onBlur: true)
-                            ->required()
                             ->numeric(),
 
                         Hidden::make('return_itopup'),
@@ -321,13 +298,11 @@ class RsoSalesResource extends Resource
                                     ->content(function (Get $get) {
                                         $houseId = intval($get('house_id'));
 
-                                        // Get today's sale-given RSO IDs
                                         $givenRsoIds = RsoSales::whereDate('created_at', Carbon::today())
                                             ->whereNotNull('rso_id')
                                             ->pluck('rso_id')
                                             ->toArray();
 
-                                        // Stock Given: Last 3 digits
                                         $stockGiven = Rso::whereIn('id', $givenRsoIds)
                                             ->where('house_id', $houseId)
                                             ->pluck('itop_number')
@@ -335,7 +310,6 @@ class RsoSalesResource extends Resource
                                             ->implode(', ');
                                         $stockGivenCount = count(array_filter(array_map('trim', explode(',', $stockGiven))));
 
-                                        // Rest Of: Last 3 digits
                                         $restOf = Rso::whereNotIn('id', $givenRsoIds)
                                             ->where('house_id', $houseId)
                                             ->pluck('itop_number')
@@ -361,11 +335,9 @@ class RsoSalesResource extends Resource
                                 Placeholder::make('Overview')
                                     ->label('')
                                     ->content(function (Get $get){
-
                                         $houseId = intval($get('house_id'));
                                         $rsoId = intval($get('rso_id'));
 
-                                        // Get today's stock
                                         $stock = RsoStock::where('house_id', $houseId)
                                             ->where('rso_id', $rsoId)
                                             ->latest()
@@ -373,18 +345,14 @@ class RsoSalesResource extends Resource
 
                                         $html = '';
 
-                                        // If stock exists, loop through the products
                                         if ($stock) {
                                             $html = self::getCurrentStock($stock, $html);
                                         } else {
-
-                                            // Get last stock
                                             $lastStock = RsoStock::where('house_id', $houseId)
                                                 ->where('rso_id', $rsoId)
                                                 ->latest('created_at')
                                                 ->first();
 
-                                            // If stock exists, loop through the products
                                             if ($lastStock && $lastStock->products) {
                                                 $html = self::getCurrentStock($lastStock, $html);
                                             }
@@ -477,6 +445,76 @@ class RsoSalesResource extends Resource
     }
 
     /**
+     * Filter out empty product entries before saving
+     */
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['products'] = $this->filterEmptyProducts($data['products'] ?? []);
+        return $data;
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $data['products'] = $this->filterEmptyProducts($data['products'] ?? []);
+        return $data;
+    }
+
+    protected function filterEmptyProducts(array $products): array
+    {
+        return array_filter($products, function ($product) {
+            $relevantFields = [
+                'category', 'sub_category', 'code', 'product_id',
+                'quantity', 'rate', 'retailer_price', 'lifting_price', 'price'
+            ];
+
+            $isEmpty = true;
+            foreach ($relevantFields as $field) {
+                if (!is_null(Arr::get($product, $field))) {
+                    $isEmpty = false;
+                    break;
+                }
+            }
+
+            return !$isEmpty;
+        });
+    }
+
+    /**
+     * Prevent saving records with no valid products and no itopup
+     */
+    protected function beforeCreate(): void
+    {
+        $state = $this->form->getState();
+        $products = $this->filterEmptyProducts($state['products'] ?? []);
+        $itopup = $state['itopup'] ?? 0;
+
+        if (empty($products) && !$itopup) {
+            Notification::make()
+                ->title('কোনো প্রোডাক্ট বা আইটপ যোগ করা হয়নি')
+                ->body('একটি আর এস ও সেলস রেকর্ড তৈরি করতে আপনাকে অবশ্যই কমপক্ষে একটি বৈধ প্রোডাক্ট বা আইটপ পরিমাণ নির্দিষ্ট করতে হবে।')
+                ->danger()
+                ->send();
+            throw new \Exception('Validation failed: No valid products or Itopup added.');
+        }
+    }
+
+    protected function beforeSave(): void
+    {
+        $state = $this->form->getState();
+        $products = $this->filterEmptyProducts($state['products'] ?? []);
+        $itopup = $state['itopup'] ?? 0;
+
+        if (empty($products) && !$itopup) {
+            Notification::make()
+                ->title('কোনো প্রোডাক্ট বা আইটপ যোগ করা হয়নি')
+                ->body('একটি আর এস ও সেলস রেকর্ড আপডেট করতে আপনাকে অবশ্যই কমপক্ষে একটি বৈধ প্রোডাক্ট বা আইটপ পরিমাণ নির্দিষ্ট করতে হবে।')
+                ->danger()
+                ->send();
+            throw new \Exception('Validation failed: No valid products or Itopup added.');
+        }
+    }
+
+    /**
      * @param $stock
      * @param string $html
      * @return string
@@ -499,7 +537,6 @@ class RsoSalesResource extends Resource
         $categoryWiseTotals = collect($stock->products)
             ->groupBy('category')
             ->map(function ($items){
-
                 return $items->sum(function ($item){
                     return $item['quantity'] * $item['lifting_price'];
                 });
@@ -562,7 +599,6 @@ class RsoSalesResource extends Resource
             $html .= '<hr>';
             $html .= '<strong>TA : </strong>' . number_format($taAmount) . ' Tk';
         }
-
 
         $categoryWiseTotals = $products
             ->groupBy('category')

@@ -30,6 +30,7 @@ use Filament\Tables\Table;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Arr;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
@@ -69,32 +70,30 @@ class RsoLiftingResource extends Resource
                                     ->options(fn(Get $get) => Rso::query()
                                         ->where('status', 'active')
                                         ->where('house_id', $get('house_id'))
-                                        ->select('id', 'itop_number', 'name') // Select the required fields
+                                        ->select('id', 'itop_number', 'name')
                                         ->get()
                                         ->mapWithKeys(function ($item) {
-                                            return [$item->id => $item->itop_number . ' - ' . $item->name]; // Concatenate fields
+                                            return [$item->id => $item->itop_number . ' - ' . $item->name];
                                         })
                                     ),
 
                                 TextInput::make('itopup')
                                     ->required(function (Get $get): bool {
-                                        // Check if any product in the repeater has been selected
                                         $products = $get('products') ?? [];
                                         foreach ($products as $product) {
                                             if (!empty($product['product_id'])) {
-                                                return false; // Not required if any product is selected
+                                                return false;
                                             }
                                         }
-                                        return true; // Required if no products are selected
+                                        return true;
                                     })
                                     ->numeric(),
                             ]),
 
-
                         TableRepeater::make('products')
                             ->reorderable()
                             ->cloneable()
-                            ->extraAttributes(fn (Get $get) => ['house_id' => $get('house_id')]) // ✅ Parent থেকে `house_id` পাঠানো
+                            ->extraAttributes(fn (Get $get) => ['house_id' => $get('house_id')])
                             ->schema([
                                 Hidden::make('category'),
                                 Hidden::make('sub_category'),
@@ -104,23 +103,21 @@ class RsoLiftingResource extends Resource
                                     ->label('Name')
                                     ->live()
                                     ->searchable()
+                                    ->required()
                                     ->afterStateUpdated(function(Get $get, Set $set, $state){
                                         $productId = intval($state);
 
-                                        // Check if the product_id exists in the products array of any Lifting record
                                         $stock = Stock::whereJsonContains('products', ['product_id' => $productId])
-                                            ->orWhereJsonContains('products', ['product_id' => (string)$productId]) // Handle string IDs if applicable
+                                            ->orWhereJsonContains('products', ['product_id' => (string)$productId])
                                             ->first();
 
                                         if (!$stock) {
-                                            // Notify user if product is not found in Lifting table's products array
                                             Notification::make()
                                                 ->title('Product Unavailable')
                                                 ->body('The selected product is not available in the lifting records.')
                                                 ->danger()
                                                 ->send();
 
-                                            // Reset the product_id and related fields
                                             $set('product_id', null);
                                             $set('category', null);
                                             $set('sub_category', null);
@@ -131,11 +128,9 @@ class RsoLiftingResource extends Resource
                                             return;
                                         }
 
-                                        // ✅ প্রোডাক্ট ডাটা সেট করা
                                         $product = Product::find($productId);
 
                                         if ($product) {
-                                            // Save category directly from product table
                                             $set('category', $product->category);
                                             $set('sub_category', $product->sub_category);
                                             $set('code', $product->code);
@@ -144,25 +139,21 @@ class RsoLiftingResource extends Resource
                                         }
                                     })
                                     ->options(function (){
-                                        // Get all product_ids from Lifting table's products array
                                         $availableProductIds = Lifting::query()
                                             ->get()
                                             ->pluck('products')
                                             ->flatten(1)
                                             ->pluck('product_id')
-                                            ->map(fn ($id) => (string)$id) // Ensure string comparison
+                                            ->map(fn ($id) => (string)$id)
                                             ->unique()
                                             ->toArray();
 
-                                        // Get only active products that are available in Lifting
                                         $products = Product::where('status', 'active')
                                             ->whereIn('id', $availableProductIds)
                                             ->get();
 
-                                        // Build options with tick mark badges
                                         $options = [];
                                         foreach ($products as $product) {
-                                            // All products here are available, so include the tick mark badge
                                             $label = $product->code ?? 'Product ' . $product->id;
                                             $options[$product->id] = $label;
                                         }
@@ -172,12 +163,14 @@ class RsoLiftingResource extends Resource
 
                                 TextInput::make('quantity')
                                     ->numeric()
-                                    ->required(fn(callable $get): bool => intval($get('product_id')) !== 0)
+                                    ->required()
                                     ->live(onBlur:true),
 
                                 Hidden::make('lifting_price'),
                                 Hidden::make('price'),
-                            ]),
+                            ])
+                            ->default([])
+                            ->dehydrated(true),
 
                         TextInput::make('remarks')
                             ->maxLength(255)
@@ -193,7 +186,6 @@ class RsoLiftingResource extends Resource
                             ]),
                     ]),
 
-
                 Group::make()
                     ->columnSpan(1)
                     ->schema([
@@ -204,13 +196,11 @@ class RsoLiftingResource extends Resource
                                     ->content(function (Get $get) {
                                         $houseId = intval($get('house_id'));
 
-                                        // Get today's stock-given RSO IDs
                                         $givenRsoIds = RsoLifting::whereDate('created_at', Carbon::today())
                                             ->whereNotNull('rso_id')
                                             ->pluck('rso_id')
                                             ->toArray();
 
-                                        // Stock Given: Last 3 digits
                                         $stockGiven = Rso::whereIn('id', $givenRsoIds)
                                             ->where('house_id', $houseId)
                                             ->pluck('itop_number')
@@ -218,7 +208,6 @@ class RsoLiftingResource extends Resource
                                             ->implode(', ');
                                         $stockGivenCount = count(array_filter(array_map('trim', explode(',', $stockGiven))));
 
-                                        // Rest Of: Last 3 digits
                                         $restOf = Rso::whereNotIn('id', $givenRsoIds)
                                             ->where('house_id', $houseId)
                                             ->pluck('itop_number')
@@ -261,12 +250,10 @@ class RsoLiftingResource extends Resource
                                 Placeholder::make('Overview')
                                     ->label('')
                                     ->content(function (Get $get){
-
                                         $houseId = intval($get('house_id'));
                                         $rsoId = intval($get('rso_id'));
                                         $today = Carbon::today()->toDateString();
 
-                                        // Get today's stock
                                         $stock = RsoStock::where('house_id', $houseId)
                                             ->where('rso_id', $rsoId)
                                             ->whereDate('created_at', $today)
@@ -274,18 +261,14 @@ class RsoLiftingResource extends Resource
 
                                         $html = '';
 
-                                        // If stock exists, loop through the products
                                         if ($stock && $stock->products) {
                                             $html = self::getCurrentStockData($stock, $html);
                                         } else {
-
-                                            // Get last stock
                                             $lastStock = RsoStock::where('house_id', $houseId)
                                                 ->where('rso_id', $rsoId)
                                                 ->latest('created_at')
                                                 ->first();
 
-                                            // If stock exists, loop through the products
                                             if ($lastStock && $lastStock->products) {
                                                 $html = self::getCurrentStockData($lastStock, $html);
                                             }
@@ -362,6 +345,76 @@ class RsoLiftingResource extends Resource
     }
 
     /**
+     * Filter out empty product entries before saving
+     */
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['products'] = $this->filterEmptyProducts($data['products'] ?? []);
+        return $data;
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $data['products'] = $this->filterEmptyProducts($data['products'] ?? []);
+        return $data;
+    }
+
+    protected function filterEmptyProducts(array $products): array
+    {
+        return array_filter($products, function ($product) {
+            $relevantFields = [
+                'category', 'sub_category', 'code', 'product_id',
+                'quantity', 'lifting_price', 'price'
+            ];
+
+            $isEmpty = true;
+            foreach ($relevantFields as $field) {
+                if (!is_null(Arr::get($product, $field))) {
+                    $isEmpty = false;
+                    break;
+                }
+            }
+
+            return !$isEmpty;
+        });
+    }
+
+    /**
+     * Prevent saving records with no valid products and no itopup
+     */
+    protected function beforeCreate(): void
+    {
+        $state = $this->form->getState();
+        $products = $this->filterEmptyProducts($state['products'] ?? []);
+        $itopup = $state['itopup'] ?? 0;
+
+        if (empty($products) && !$itopup) {
+            Notification::make()
+                ->title('কোনো প্রোডাক্ট বা আইটপ যোগ করা হয়নি')
+                ->body('একটি আর এস ও লিফটিং রেকর্ড তৈরি করতে আপনাকে অবশ্যই কমপক্ষে একটি বৈধ প্রোডাক্ট বা আইটপ পরিমাণ নির্দিষ্ট করতে হবে।')
+                ->danger()
+                ->send();
+            throw new \Exception('Validation failed: No valid products or Itopup added.');
+        }
+    }
+
+    protected function beforeSave(): void
+    {
+        $state = $this->form->getState();
+        $products = $this->filterEmptyProducts($state['products'] ?? []);
+        $itopup = $state['itopup'] ?? 0;
+
+        if (empty($products) && !$itopup) {
+            Notification::make()
+                ->title('কোনো প্রোডাক্ট বা আইটপ যোগ করা হয়নি')
+                ->body('একটি আর এস ও লিফটিং রেকর্ড আপডেট করতে আপনাকে অবশ্যই কমপক্ষে একটি বৈধ প্রোডাক্ট বা আইটপ পরিমাণ নির্দিষ্ট করতে হবে।')
+                ->danger()
+                ->send();
+            throw new \Exception('Validation failed: No valid products or Itopup added.');
+        }
+    }
+
+    /**
      * @param $stock
      * @param string $html
      * @return string
@@ -397,7 +450,6 @@ class RsoLiftingResource extends Resource
 
         $html .= '<hr>';
         $html .= '<strong>Grand Total: </strong>'.number_format($categoryWiseTotals->sum()).' Tk';
-
 
         return $html;
     }
