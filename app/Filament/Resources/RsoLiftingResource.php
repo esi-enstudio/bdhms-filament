@@ -13,7 +13,9 @@ use App\Models\RsoStock;
 use App\Models\Stock;
 use Carbon\Carbon;
 use Closure;
+use Exception;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -26,6 +28,8 @@ use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Illuminate\Database\Eloquent\Builder;
@@ -283,6 +287,9 @@ class RsoLiftingResource extends Resource
             ]);
     }
 
+    /**
+     * @throws Exception
+     */
     public static function table(Table $table): Table
     {
         return $table
@@ -314,7 +321,26 @@ class RsoLiftingResource extends Resource
             ])
             ->defaultPaginationPageOption(5)
             ->filters([
-                //
+                SelectFilter::make('house_id')
+                    ->label('DD House')
+                    ->options(House::where('status','active')->pluck('code','id')),
+
+                Filter::make('created_at')
+                    ->form([
+                        DatePicker::make('created_from')->native(false),
+                        DatePicker::make('created_until')->native(false),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['created_from'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
+                            )
+                            ->when(
+                                $data['created_until'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
+                            );
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -381,6 +407,7 @@ class RsoLiftingResource extends Resource
 
     /**
      * Prevent saving records with no valid products and no itopup
+     * @throws Exception
      */
     protected function beforeCreate(): void
     {
@@ -394,10 +421,13 @@ class RsoLiftingResource extends Resource
                 ->body('একটি আর এস ও লিফটিং রেকর্ড তৈরি করতে আপনাকে অবশ্যই কমপক্ষে একটি বৈধ প্রোডাক্ট বা আইটপ পরিমাণ নির্দিষ্ট করতে হবে।')
                 ->danger()
                 ->send();
-            throw new \Exception('Validation failed: No valid products or Itopup added.');
+            throw new Exception('Validation failed: No valid products or Itopup added.');
         }
     }
 
+    /**
+     * @throws Exception
+     */
     protected function beforeSave(): void
     {
         $state = $this->form->getState();
@@ -410,7 +440,7 @@ class RsoLiftingResource extends Resource
                 ->body('একটি আর এস ও লিফটিং রেকর্ড আপডেট করতে আপনাকে অবশ্যই কমপক্ষে একটি বৈধ প্রোডাক্ট বা আইটপ পরিমাণ নির্দিষ্ট করতে হবে।')
                 ->danger()
                 ->send();
-            throw new \Exception('Validation failed: No valid products or Itopup added.');
+            throw new Exception('Validation failed: No valid products or Itopup added.');
         }
     }
 

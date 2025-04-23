@@ -2,12 +2,15 @@
 
 namespace App\Filament\Pages;
 
+use App\Exports\DailyReportExport;
 use App\Models\House;
 use App\Models\Lifting;
 use App\Models\RsoSales;
 use App\Models\Stock;
 use App\Models\ReceivingDues;
+use App\Traits\ProductMappingTrait;
 use Carbon\Carbon;
+use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Select;
@@ -16,6 +19,7 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * @property mixed $form
@@ -23,6 +27,7 @@ use Illuminate\Support\Str;
 class DailyReport extends Page implements HasForms
 {
     use InteractsWithForms;
+    use ProductMappingTrait;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
@@ -47,6 +52,7 @@ class DailyReport extends Page implements HasForms
         ]);
         $this->tableHtmlPage1 = '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">Please select house and date to view the report.</div>';
         $this->tableHtmlPage2 = '';
+        $this->tableHtmlPage3 = '';
     }
 
     protected function getFormSchema(): array
@@ -55,18 +61,18 @@ class DailyReport extends Page implements HasForms
             Grid::make(2)->schema([
                 Select::make('selectedHouse')
                     ->label('Select House')
-                    ->options(House::where('status','active')->pluck('name', 'id')->toArray())
+                    ->options(House::where('status', 'active')->pluck('name', 'id')->toArray())
                     ->placeholder('Select a house')
                     ->reactive()
                     ->required()
-                    ->afterStateUpdated(fn ($state) => $this->selectedHouse = $state),
+                    ->afterStateUpdated(fn($state) => $this->selectedHouse = $state),
 
                 DatePicker::make('selectedDate')
                     ->label('Select Date')
                     ->default(now()->format('Y-m-d'))
                     ->reactive()
                     ->required()
-                    ->afterStateUpdated(fn ($state) => $this->selectedDate = $state),
+                    ->afterStateUpdated(fn($state) => $this->selectedDate = $state),
             ]),
         ];
     }
@@ -163,94 +169,6 @@ class DailyReport extends Page implements HasForms
         $this->tableHtmlPage1 = $this->generateFirstPageHtml();
         $this->tableHtmlPage2 = $this->generateSecondPageHtml();
         $this->tableHtmlPage3 = $this->generateThirdPageHtml();
-    }
-
-    protected function getProductKey(array $product): string
-    {
-        Log::debug('Processing product for key', ['product' => $product]);
-
-        if (empty($product['code'])) {
-            Log::warning('Missing code in product', ['product' => $product]);
-            return 'unknown_' . md5(json_encode($product));
-        }
-
-        $key = match ($product['code']) {
-            'MMST' => 'mmst',
-            'ESIMP' => 'esimp',
-            'MMSTS' => 'mmsts',
-            'ESIMUP' => 'esimup',
-            'SIM SWAP', 'SIM-SWAP' => 'sim_swap',
-            'ESIMSWAP' => 'esimswap',
-            'EV SWAP', 'EV-SWAP' => 'ev_swap',
-            'ROUTER' => 'router_wifi',
-            'SCMB-09' => 'scmb_9_voice',
-            'MV-10' => 'mv_10_mv',
-            'SCV-14' => 'scv_14_voice',
-            'SCD-14' => 'scd_14_data',
-            'SCV-19' => 'scv_19_voice',
-            'SC-19' => 'sc-19',
-            'SCV-19-30M' => 'scv_19_30m_voice',
-            'MV-20' => 'mv_20_voice',
-            'SCV-29-40M' => 'scv_29_40m_voice',
-            'SCD-29-MB500' => 'scd_29_mb500_data',
-            'SCD-29-1GB-1-DAY' => 'scd_29_1gb_1day_data',
-            'SCD-49-1GB-3-DAY' => 'scd_49_1gb_3day_data',
-            'MV50' => 'mv_50_voice',
-            'SCD-69' => 'scd_69_tk_data',
-            default => 'unknown_' . md5(json_encode($product)),
-        };
-
-        Log::debug('Product key mapped', [
-            'code' => $product['code'],
-            'key' => $key,
-            'product' => $product
-        ]);
-
-        return $key;
-    }
-
-    protected function getProductLabel(array $product): string
-    {
-        Log::debug('Processing product for label', ['product' => $product]);
-
-        if (empty($product['code'])) {
-            Log::warning('Missing code in product', ['product' => $product]);
-            return 'Unknown Product';
-        }
-
-        $label = match ($product['code']) {
-            'MMST' => 'STD',
-            'ESIMP' => 'E-SIM-P',
-            'MMSTS' => 'MMSTS',
-            'ESIMUP' => 'E-SIM-UP',
-            'SIM SWAP', 'SIM-SWAP' => 'SIM SWAP',
-            'ESIMSWAP' => 'E-SIM-SWAP',
-            'EV SWAP', 'EV-SWAP' => 'EV SWAP',
-            'ROUTER' => 'WIFI ROUTER',
-            'SCMB-09' => '09tk V',
-            'MV-10' => '10tk MV',
-            'SCV-14' => '14tk V',
-            'SCD-14' => '14tk D',
-            'SCV-19' => '19tk V',
-            'SC-19' => 'SC-19',
-            'SCV-19-30M' => '19tk V_30min',
-            'MV-20' => '20tk MV',
-            'SCV-29-40M' => '29tk V_40min',
-            'SCD-29-MB500' => '29tk D_500mb',
-            'SCD-29-1GB-1-DAY' => '29tk D_1gb',
-            'SCD-49-1GB-3-DAY' => '49tk D_1gb',
-            'MV50' => '50tk MV',
-            'SCD-69' => '69tk D',
-            default => 'Unknown Product',
-        };
-
-        Log::debug('Product label mapped', [
-            'code' => $product['code'],
-            'label' => $label,
-            'product' => $product
-        ]);
-
-        return $label;
     }
 
     protected function generateFirstPageHtml(): string
@@ -578,7 +496,7 @@ class DailyReport extends Page implements HasForms
             ->pluck('products')
             ->flatten(1)
             ->groupBy(function ($product) {
-                return $product['code'] . '_' . $product['rate']; // Group by code and rate
+                return $product['code'] . '_' . $product['rate']; // Group by code and rate to consolidate duplicates
             })
             ->map(function ($group) {
                 $firstProduct = $group->first();
@@ -594,20 +512,24 @@ class DailyReport extends Page implements HasForms
                     'price' => $firstProduct['price'],
                 ];
             })
-            ->values()
-            ->toArray();
+            ->values();
 
-        Log::debug('Transformed products for Page 2', [
-            'products' => $transformedProducts,
+        // Group products by category and sort categories alphabetically
+        $groupedByCategory = $transformedProducts
+            ->groupBy('category')
+            ->sortKeys();
+
+        Log::debug('Grouped products by category for Page 2', [
+            'grouped_products' => $groupedByCategory->toArray(),
             'date' => $this->selectedDate,
             'house' => $this->selectedHouse,
         ]);
 
-        // Calculate the total amount
-        $totalAmount = 0;
+        // Calculate the grand total
+        $grandTotal = 0;
         foreach ($transformedProducts as $product) {
             $total = $product['quantity'] * $product['rate'];
-            $totalAmount += $total;
+            $grandTotal += $total;
         }
 
         // Build the HTML for Page 2 using a table with borders
@@ -629,20 +551,35 @@ class DailyReport extends Page implements HasForms
 
         // Table body
         $html .= '<tbody>';
-        foreach ($transformedProducts as $product) {
-            $total = $product['quantity'] * $product['rate'];
+
+        // Iterate through each category
+        foreach ($groupedByCategory as $category => $products) {
+            // Calculate category subtotal
+            $categoryTotal = 0;
+            foreach ($products as $product) {
+                $total = $product['quantity'] * $product['rate'];
+                $categoryTotal += $total;
+
+                // Add product row
+                $html .= '<tr>';
+                $html .= '<td class="border border-gray-300 p-2 text-left">' . htmlspecialchars($product['code']) . '</td>';
+                $html .= '<td class="border border-gray-300 p-2 text-right">' . $product['quantity'] . '</td>';
+                $html .= '<td class="border border-gray-300 p-2 text-right">' . $product['rate'] . '</td>';
+                $html .= '<td class="border border-gray-300 p-2 text-right">' . number_format($total) . '</td>';
+                $html .= '</tr>';
+            }
+
+            // Add category subtotal row
             $html .= '<tr>';
-            $html .= '<td class="border border-gray-300 p-2 text-left">' . htmlspecialchars($product['code']) . '</td>';
-            $html .= '<td class="border border-gray-300 p-2 text-right">' . $product['quantity'] . '</td>';
-            $html .= '<td class="border border-gray-300 p-2 text-right">' . number_format($product['rate']) . '</td>';
-            $html .= '<td class="border border-gray-300 p-2 text-right">' . number_format($total) . '</td>';
+            $html .= '<td colspan="3" class="border border-gray-300 p-2 text-right font-semibold">Subtotal:</td>';
+            $html .= '<td class="border border-gray-300 p-2 text-right font-semibold">' . number_format($categoryTotal) . '</td>';
             $html .= '</tr>';
         }
 
-        // Add total row if totalAmount > 0
+        // Add grand total row if grandTotal > 0
         $html .= '<tr>';
-        $html .= '<td colspan="3" class="border border-gray-300 p-2 text-right font-bold">Total Amount:</td>';
-        $html .= '<td class="border border-gray-300 p-2 text-right font-bold">' . number_format($totalAmount) . '</td>';
+        $html .= '<td colspan="3" class="border border-gray-300 p-2 text-right font-bold">Grand Total:</td>';
+        $html .= '<td class="border border-gray-300 p-2 text-right font-bold">' . number_format($grandTotal) . '</td>';
         $html .= '</tr>';
 
         $html .= '</tbody>';
@@ -651,7 +588,9 @@ class DailyReport extends Page implements HasForms
         $html .= '</div>';
         $html .= '</div>';
 
-        if ($totalAmount > 0){return $html;}
+        if ($grandTotal > 0) {
+            return $html;
+        }
 
         return false;
     }
@@ -716,8 +655,8 @@ class DailyReport extends Page implements HasForms
         // Process each item from ReceivingDues
         $items = $receivingDue->items ?? [];
         foreach ($items as $item) {
-            $title = $item['title'] ?? 'Unknown';
-            $operator = $item['operator'] ?? '+';
+            $title = $item['title'] ?? 'N/A';
+            $operator = $item['operator'] ?? 'N/A';
             $amount = floatval($item['amount'] ?? 0);
 
             if ($operator === '-') {
@@ -764,12 +703,39 @@ class DailyReport extends Page implements HasForms
         $html .= '</div>';
         $html .= '</div>';
 
-        return $html;
+        if ($rows) {
+            return $html;
+        }
+
+        return false;
     }
 
     protected function getHeaderActions(): array
     {
-        return [];
+        $noDataMessage = '<div class="w-full mx-auto shadow-md rounded-lg p-6 text-center text-gray-500">No data available for house <em>' . htmlspecialchars(House::find($this->selectedHouse)?->name ?? 'Unknown House') .'</em> date '. Carbon::parse($this->selectedDate)->toFormattedDayDateString() . '</div>';
+
+        return [
+            Action::make('downloadExcel')
+                ->label('Download Excel')
+                ->action('downloadExcel')
+                ->color('success')
+                ->icon('heroicon-o-document-arrow-down')
+                ->requiresConfirmation()
+                ->modalHeading('Download Daily Report as Excel')
+                ->modalDescription('Are you sure you want to download the daily report as an Excel file?')
+                ->modalSubmitActionLabel('Yes, download')
+                ->disabled(fn() => !$this->selectedDate || !$this->selectedHouse || $this->tableHtmlPage1 === $noDataMessage),
+        ];
+    }
+
+    public function downloadExcel()
+    {
+        if (!$this->selectedDate || !$this->selectedHouse) {
+            return;
+        }
+
+        $fileName = 'Daily_Report_' . Carbon::parse($this->selectedDate)->format('Y-m-d') . '_' . Str::slug(House::find($this->selectedHouse)?->name ?? 'unknown') . '.xlsx';
+        return Excel::download(new DailyReportExport($this), $fileName);
     }
 
     public static function getNavigationLabel(): string

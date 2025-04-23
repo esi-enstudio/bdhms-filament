@@ -59,13 +59,6 @@ class DailyExpenseResource extends Resource
                                         TextInput::make('title')
                                             ->required(),
 
-                                        Select::make('operator')
-                                            ->required()
-                                            ->options([
-                                                '+' => 'Received',
-                                                '-' => 'Due',
-                                            ]),
-
                                         TextInput::make('amount')
                                             ->numeric()
                                             ->live(onBlur: true)

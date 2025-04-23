@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Models\House;
 use App\Models\Rso;
 use App\Models\User;
 use Filament\Tables;
@@ -42,7 +43,8 @@ class CommissionResource extends Resource
                     ->columns(2)
                     ->schema([
                         Select::make('house_id')
-                            ->relationship('house', 'code')
+                            ->label('House')
+                            ->options(House::where('status','active')->pluck('code','id'))
                             ->searchable()
                             ->preload()
                             ->live()
