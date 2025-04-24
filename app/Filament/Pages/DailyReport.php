@@ -385,24 +385,29 @@ class DailyReport extends Page implements HasForms
                     'key' => 'name',
                     'label' => 'RSO',
                     'align' => 'left',
+                    'rate' => '', // No rate for RSO
                 ];
             } elseif ($key === 'itopup') {
                 $headers[] = [
                     'key' => 'itopup',
                     'label' => 'I\'top up',
                     'align' => 'center',
+                    'rate' => '', // No rate for I'top up
                 ];
             } elseif ($key === 'amount') {
                 $headers[] = [
                     'key' => 'amount',
                     'label' => 'Amount',
                     'align' => 'center',
+                    'rate' => '', // No rate for Amount
                 ];
             } elseif (isset($productTypes[$key])) {
+                $rate = $productTypes[$key]['product']['rate'] ?? '';
                 $headers[] = [
                     'key' => $key,
                     'label' => $productTypes[$key]['label'],
                     'align' => 'center',
+                    'rate' => $rate, // Add the rate for product columns
                 ];
             }
         }
@@ -422,15 +427,27 @@ class DailyReport extends Page implements HasForms
 
         $html .= '<div class="overflow-x-auto">';
         $html .= '<table class="w-full border-collapse border border-gray-300 text-center">';
-        $html .= '<thead><tr>';
+        $html .= '<thead>';
 
+        // First row: Labels
+        $html .= '<tr>';
         foreach ($headers as $header) {
             $html .= '<th class="border border-gray-300 px-4 py-2 text-' . htmlspecialchars($header['align']) . '">';
             $html .= htmlspecialchars($header['label']);
             $html .= '</th>';
         }
+        $html .= '</tr>';
 
-        $html .= '</tr></thead><tbody>';
+        // Second row: Rates (only for product columns)
+        $html .= '<tr>';
+        foreach ($headers as $header) {
+            $html .= '<th class="border border-gray-300 px-4 py-2 text-' . htmlspecialchars($header['align']) . '">';
+            $html .= $header['rate'] ? htmlspecialchars($header['rate']) : '';
+            $html .= '</th>';
+        }
+        $html .= '</tr>';
+
+        $html .= '</thead><tbody>';
 
         foreach ($this->rsos as $rso) {
             $html .= '<tr>';
@@ -533,7 +550,7 @@ class DailyReport extends Page implements HasForms
         }
 
         // Build the HTML for Page 2 using a table with borders
-        $html = '<div class="w-full mx-auto shadow-md rounded-lg font-bold text-md">';
+        $html = '<div class="shadow-md rounded-lg font-bold text-md">';
         $html .= '<div class="text-left">';
 
         // Start the table with borders
@@ -645,7 +662,7 @@ class DailyReport extends Page implements HasForms
         // Add the first row: Daily Report
         if ($dailyReport > 0) {
             $rows[] = [
-                'description' => "Daily Report - {$dailyReport}",
+                'description' => "Daily Report - " . number_format($dailyReport),
                 'operator' => '',
                 'amount' => number_format($adjustedDailyReport, 0),
                 'running_total' => number_format($runningTotal, 0),
@@ -676,7 +693,7 @@ class DailyReport extends Page implements HasForms
         }
 
         // Build the HTML for Page 3
-        $html = '<div class="w-full mx-auto shadow-md rounded-lg font-bold text-md">';
+        $html = '<div class="shadow-md rounded-lg font-bold text-md">';
         $html .= '<div class="text-left">';
         $html .= '<table class="border-collapse border border-gray-300">';
         $html .= '<thead>';

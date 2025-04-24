@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use Carbon\Carbon;
 use Filament\Notifications\Notification;
 use Filament\Tables;
 use App\Models\House;
@@ -11,6 +12,7 @@ use App\Models\Product;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
@@ -26,6 +28,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\Placeholder;
 use App\Filament\Resources\LiftingResource\Pages;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
+use Illuminate\Support\Str;
 use function PHPUnit\Framework\isEmpty;
 
 class LiftingResource extends Resource
@@ -313,6 +316,7 @@ class LiftingResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('user.name')
                     ->numeric()
+                    ->toggleable(isToggledHiddenByDefault: true)
                     ->sortable(),
                 Tables\Columns\TextColumn::make('itopup')
                     ->numeric()
@@ -328,27 +332,115 @@ class LiftingResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
                     ->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
+                    ->sortable(),
             ])
             ->defaultPaginationPageOption(5)
             ->filters([
+                SelectFilter::make('house_id')
+                    ->label('DD House')
+                    ->options(House::where('status','active')->pluck('code','id')),
+
+                SelectFilter::make('attempt')
+                    ->label('Attempt')
+                    ->options(function () {
+                        $lifting = self::$model;
+
+                        return $lifting::query()
+                            ->select('attempt')
+                            ->whereNotNull('attempt')
+                            ->pluck('attempt')
+                            ->flatMap(function ($attempt) {
+                                // Split comma-separated values and trim whitespace
+                                return array_map('trim', explode(',', $attempt));
+                            })
+                            ->unique()
+                            ->mapWithKeys(function ($attempt) {
+                                // Use the attempt value as both key and label
+                                return [$attempt => $attempt];
+                            })
+                            ->toArray();
+                    })
+                    ->query(function ($query, array $data) {
+                        if (!empty($data['value'])) {
+                            // Use LIKE to filter records where attempt contains the selected value
+                            $query->where('attempt', 'LIKE', '%' . $data['value'] . '%');
+                        }
+                    }),
+
+                SelectFilter::make('mode')
+                    ->label('Mode')
+                    ->options(function () {
+                        $lifting = self::$model;
+
+                        // Get unique mode values and convert to title case
+                        return $lifting::query()
+                            ->select('mode')
+                            ->whereNotNull('mode')
+                            ->pluck('mode')
+                            ->flatMap(function ($mode) {
+                                // Split comma-separated values and trim whitespace
+                                return array_map('trim', explode(',', $mode));
+                            })
+                            ->unique()
+                            ->mapWithKeys(function ($mode) {
+                                // Use mode as both key and value for simplicity
+                                return [$mode => Str::title($mode)];
+                            })
+                            ->toArray();
+                    })
+                    ->query(function ($query, array $data) {
+                        if (!empty($data['value'])) {
+                            // Use LIKE to filter records where mode contains the selected value
+                            $query->where('mode', 'LIKE', '%' . $data['value'] . '%');
+                        }
+                    }),
+
+                SelectFilter::make('status')
+                    ->label('Status')
+                    ->options(function () {
+                        $lifting = self::$model;
+
+                        // Get unique mode values and convert to title case
+                        return $lifting::query()
+                            ->select('status')
+                            ->whereNotNull('status')
+                            ->pluck('status')
+                            ->flatMap(function ($status) {
+                                // Split comma-separated values and trim whitespace
+                                return array_map('trim', explode(',', $status));
+                            })
+                            ->unique()
+                            ->mapWithKeys(function ($status) {
+                                // Use status as both key and value for simplicity
+                                return [$status => Str::title($status)];
+                            })
+                            ->toArray();
+                    })
+                    ->query(function ($query, array $data) {
+                        if (!empty($data['value'])) {
+                            // Use LIKE to filter records where status contains the selected value
+                            $query->where('status', 'LIKE', '%' . $data['value'] . '%');
+                        }
+                    }),
+
                 Filter::make('created_at')
                     ->form([
-                        DatePicker::make('created_from')->native(false),
-                        DatePicker::make('created_until')->native(false),
+                        DatePicker::make('from'), //->native(false),
+                        DatePicker::make('to'),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
                             ->when(
-                                $data['created_from'],
+                                $data['from'],
                                 fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
                             )
                             ->when(
-                                $data['created_until'],
+                                $data['to'],
                                 fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
                             );
                     })

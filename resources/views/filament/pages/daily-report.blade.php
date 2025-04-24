@@ -6,7 +6,9 @@
     </div>
     <div class="space-y-6">
         {!! $this->tableHtmlPage1 !!}
-        {!! $this->tableHtmlPage2 !!}
-        {!! $this->tableHtmlPage3 !!}
+        <div class="flex justify-between">
+            {!! $this->tableHtmlPage2 !!}
+            {!! $this->tableHtmlPage3 !!}
+        </div>
     </div>
 </x-filament-panels::page>
