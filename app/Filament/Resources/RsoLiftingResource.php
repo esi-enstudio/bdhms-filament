@@ -42,7 +42,7 @@ class RsoLiftingResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
 
-    protected static ?string $navigationGroup = 'Daily Sales & Stock ( Rso )';
+    protected static ?string $navigationGroup = 'Rso Sales & Stock';
 
     public static function form(Form $form): Form
     {

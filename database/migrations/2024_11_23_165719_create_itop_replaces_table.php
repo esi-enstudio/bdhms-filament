@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('itop_replaces', function (Blueprint $table) {
             $table->id();
-            $table->foreignIdFor(User::class)->unique();
+            $table->foreignIdFor(User::class);
             $table->foreignIdFor(Retailer::class);
             $table->string('sim_serial')->unique();
             $table->string('balance');

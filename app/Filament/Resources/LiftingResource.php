@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use Carbon\Carbon;
+use Filament\Forms\Components\Repeater;
 use Filament\Notifications\Notification;
 use Filament\Tables;
 use App\Models\House;
@@ -29,6 +30,7 @@ use Filament\Forms\Components\Placeholder;
 use App\Filament\Resources\LiftingResource\Pages;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Illuminate\Support\Str;
+use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 use function PHPUnit\Framework\isEmpty;
 
 class LiftingResource extends Resource
@@ -37,7 +39,7 @@ class LiftingResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
 
-    protected static ?string $navigationGroup = 'Daily Sales & Stock';
+    protected static ?string $navigationGroup = 'House Sales & Stock';
 
     public static function form(Form $form): Form
     {
@@ -107,7 +109,7 @@ class LiftingResource extends Resource
                                 ->readOnly(),
                         ]),
 
-                    TableRepeater::make('products')
+                    Repeater::make('products')
                         ->reorderable()
                         ->cloneable()
                         ->hidden(fn(Get $get) => $get('status') == 'no lifting')
@@ -428,22 +430,7 @@ class LiftingResource extends Resource
                         }
                     }),
 
-                Filter::make('created_at')
-                    ->form([
-                        DatePicker::make('from'), //->native(false),
-                        DatePicker::make('to'),
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query
-                            ->when(
-                                $data['from'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
-                            )
-                            ->when(
-                                $data['to'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
-                            );
-                    })
+                DateRangeFilter::make('created_at')->label('Date'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -476,14 +463,6 @@ class LiftingResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->latest('created_at');
-    }
-
-    public static function infolist(Infolist $infolist): Infolist
-    {
-        return $infolist
-            ->schema([
-
-            ]);
     }
 
     private static function getStockPreview(?int $houseId): string

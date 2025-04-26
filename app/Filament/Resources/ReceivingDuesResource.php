@@ -6,8 +6,10 @@ use App\Filament\Resources\ReceivingDuesResource\Pages;
 use App\Models\ReceivingDues;
 use App\Models\House;
 use Carbon\Carbon;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Group;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -15,9 +17,13 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
+use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class ReceivingDuesResource extends Resource
 {
@@ -25,7 +31,7 @@ class ReceivingDuesResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?string $navigationGroup = 'Daily Sales & Stock';
+    protected static ?string $navigationGroup = 'Expense';
 
     public static function form(Form $form): Form
     {
@@ -54,7 +60,7 @@ class ReceivingDuesResource extends Resource
                                     ->live(onBlur: true)
                                     ->required(),
 
-                                TableRepeater::make('commissions')
+                                Repeater::make('commissions')
                                     ->reorderable()
                                     ->cloneable()
                                     ->schema([
@@ -65,7 +71,7 @@ class ReceivingDuesResource extends Resource
                                             ->live(onBlur: true),
                                     ]),
 
-                                TableRepeater::make('items')
+                                Repeater::make('items')
                                     ->reorderable()
                                     ->cloneable()
                                     ->schema([
@@ -102,6 +108,9 @@ class ReceivingDuesResource extends Resource
             ]);
     }
 
+    /**
+     * @throws \Exception
+     */
     public static function table(Table $table): Table
     {
         return $table
@@ -150,8 +159,13 @@ class ReceivingDuesResource extends Resource
                     ->dateTime()
                     ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
             ])
+            ->defaultPaginationPageOption(5)
             ->filters([
-                //
+                SelectFilter::make('house_id')
+                    ->label('DD House')
+                    ->options(House::where('status','active')->pluck('code','id')),
+
+                DateRangeFilter::make('created_at')->label('Date'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

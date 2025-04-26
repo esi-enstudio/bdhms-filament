@@ -96,6 +96,7 @@ class CommissionResource extends Resource
                             ->required(),
                         TextInput::make('amount')
                             ->required()
+                            ->numeric()
                             ->maxLength(255),
                         DatePicker::make('receive_date')
                             ->required(),

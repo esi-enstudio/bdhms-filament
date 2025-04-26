@@ -31,7 +31,7 @@ class SalesResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-chart-pie';
 
-    protected static ?string $navigationGroup = 'Daily Sales & Stock';
+    protected static ?string $navigationGroup = 'House Sales & Stock';
 
     public static function form(Form $form): Form
     {

@@ -29,7 +29,7 @@ class StockResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-circle-stack';
 
-    protected static ?string $navigationGroup = 'Daily Sales & Stock';
+    protected static ?string $navigationGroup = 'House Sales & Stock';
 
     public static function form(Form $form): Form
     {

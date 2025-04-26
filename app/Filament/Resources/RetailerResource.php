@@ -23,6 +23,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Actions\DeleteBulkAction;
 use App\Filament\Resources\RetailerResource\Pages;
+use Illuminate\Support\Facades\Auth;
 use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 use App\Filament\Resources\RetailerResource\RelationManagers;
 
@@ -178,29 +179,21 @@ class RetailerResource extends Resource
 
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        return parent::getEloquentQuery()->latest('created_at');
-    }
+        $query = parent::getEloquentQuery()
+            ->select(['id', 'house_id', 'rso_id', 'code', 'name', 'itop_number', 'enabled', 'sso', 'created_at', 'updated_at'])
+            ->latest('created_at');
 
-//    public static function getEloquentQuery(): Builder
-//    {
-//        $query = parent::getEloquentQuery();
-//
-//        if (request()->routeIs('filament.admin.resources.retailers.view'))
-//        {
-//            return $query;
-//        }
-//
-//        if (request()->routeIs('filament.admin.resources.retailers.edit'))
-//        {
-//            return $query;
-//        }
-//
-//        if (Auth::user()->hasRole('super admin'))
-//        {
-//            return Retailer::select(['id','house_id','rso_id','code','name','itop_number','enabled','sso','created_at','updated_at']);
-//        }
-//
-//        return Retailer::select(['id','house_id','rso_id','code','name','itop_number','enabled','sso','created_at','updated_at'])
-//            ->where('rso_id', Rso::firstWhere('user_id', Auth::id())->id);
-//    }
+        // Skip role-based filtering for view and edit routes
+        if (request()->routeIs('filament.admin.resources.retailers.view') ||
+            request()->routeIs('filament.admin.resources.retailers.edit')) {
+            return $query;
+        }
+
+        // Apply role-based filtering
+        if (Auth::user()->hasRole('super admin')) {
+            return $query;
+        }
+
+        return $query->where('rso_id', Rso::firstWhere('user_id', Auth::id())->id);
+    }
 }

@@ -9,6 +9,7 @@ use App\Models\RsoSales;
 use App\Models\Stock;
 use App\Models\ReceivingDues;
 use App\Traits\ProductMappingTrait;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
@@ -28,10 +29,11 @@ class DailyReport extends Page implements HasForms
 {
     use InteractsWithForms;
     use ProductMappingTrait;
+    use HasPageShield;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
-    protected static ?string $navigationGroup = 'Reports';
+    protected static ?string $navigationGroup = 'Rso Sales & Stock';
 
     protected static string $view = 'filament.pages.daily-report';
 
@@ -225,14 +227,14 @@ class DailyReport extends Page implements HasForms
             ->whereDate('created_at', $this->selectedDate)
             ->first();
 
-        // Format commissions for Amount column
+        // Format commissions for Amount column with + symbol
         $liftingAmount = '';
         if ($receivingDue && !empty($receivingDue->commissions)) {
             $liftingAmount = collect($receivingDue->commissions)
                 ->map(function ($commission) {
                     $title = $commission['title'] ?? 'Unknown';
                     $amount = $commission['amount'] ?? 0;
-                    return htmlspecialchars($title) . ': ' . number_format((float)$amount);
+                    return htmlspecialchars($title) . ': +' . number_format((float)$amount);
                 })
                 ->implode("<br>");
         }
@@ -385,29 +387,29 @@ class DailyReport extends Page implements HasForms
                     'key' => 'name',
                     'label' => 'RSO',
                     'align' => 'left',
-                    'rate' => '', // No rate for RSO
+                    'retailerPrice' => '', // No rate for RSO
                 ];
             } elseif ($key === 'itopup') {
                 $headers[] = [
                     'key' => 'itopup',
                     'label' => 'I\'top up',
                     'align' => 'center',
-                    'rate' => '', // No rate for I'top up
+                    'retailerPrice' => '', // No rate for I'top up
                 ];
             } elseif ($key === 'amount') {
                 $headers[] = [
                     'key' => 'amount',
                     'label' => 'Amount',
                     'align' => 'center',
-                    'rate' => '', // No rate for Amount
+                    'retailerPrice' => '', // No rate for Amount
                 ];
             } elseif (isset($productTypes[$key])) {
-                $rate = $productTypes[$key]['product']['rate'] ?? '';
+                $retailerPrice = $productTypes[$key]['product']['retailer_price'] ?? '';
                 $headers[] = [
                     'key' => $key,
                     'label' => $productTypes[$key]['label'],
                     'align' => 'center',
-                    'rate' => $rate, // Add the rate for product columns
+                    'retailerPrice' => $retailerPrice, // Add the retailerPrice for product columns
                 ];
             }
         }
@@ -425,24 +427,35 @@ class DailyReport extends Page implements HasForms
         $html .= '<h1 class="text-2xl font-bold">Date: ' .Carbon::parse($this->selectedDate)->toFormattedDayDateString().'</h1>';
         $html .= '</div>';
 
+        $html .= '<style>';
+        // Light mode (default)
+        $html .= 'table.striped-table tbody tr:nth-child(odd) { background-color: #f9f9f9; }'; // Light gray for odd rows
+        $html .= 'table.striped-table tbody tr:nth-child(even) { background-color: #ffffff; }'; // White for even rows
+        $html .= 'table.striped-table thead { background-color: #e5e7eb; }'; // Slightly darker gray for header
+        $html .= 'table.striped-table { color: #000000; }'; // Black text for light mode
+        $html .= 'table.striped-table th, table.striped-table td { border-color: #d1d5db; }'; // Light gray borders
+
+        // Dark mode
+        $html .= '@media (prefers-color-scheme: dark) {';
+        $html .= '  table.striped-table tbody tr:nth-child(odd) { background-color: #374151; }'; // Dark gray for odd rows
+        $html .= '  table.striped-table tbody tr:nth-child(even) { background-color: #1f2937; }'; // Darker gray for even rows
+        $html .= '  table.striped-table thead { background-color: #4b5563; }'; // Dark gray for header
+        $html .= '  table.striped-table { color: #e5e7eb; }'; // Light gray text for dark mode
+        $html .= '  table.striped-table th, table.striped-table td { border-color: #4b5563; }'; // Dark gray borders
+        $html .= '}';
+        $html .= '</style>';
+
         $html .= '<div class="overflow-x-auto">';
-        $html .= '<table class="w-full border-collapse border border-gray-300 text-center">';
+        $html .= '<table class="w-full border-collapse text-center striped-table">';
         $html .= '<thead>';
 
         // First row: Labels
         $html .= '<tr>';
         foreach ($headers as $header) {
-            $html .= '<th class="border border-gray-300 px-4 py-2 text-' . htmlspecialchars($header['align']) . '">';
+            $html .= '<th class="border px-4 py-2 text-' . htmlspecialchars($header['align']) . '">';
             $html .= htmlspecialchars($header['label']);
-            $html .= '</th>';
-        }
-        $html .= '</tr>';
-
-        // Second row: Rates (only for product columns)
-        $html .= '<tr>';
-        foreach ($headers as $header) {
-            $html .= '<th class="border border-gray-300 px-4 py-2 text-' . htmlspecialchars($header['align']) . '">';
-            $html .= $header['rate'] ? htmlspecialchars($header['rate']) : '';
+            $html .= '<br>';
+            $html .= $header['retailerPrice'] ? ' ('.htmlspecialchars($header['retailerPrice']).')' : '';
             $html .= '</th>';
         }
         $html .= '</tr>';
@@ -453,7 +466,7 @@ class DailyReport extends Page implements HasForms
             $html .= '<tr>';
             foreach ($headers as $header) {
                 $value = $header['key'] === 'name' ? $rso['name'] : ($rso['totals'][$header['key']] ?? 0);
-                $html .= '<td class="border border-gray-300 px-4 py-2 text-' . htmlspecialchars($header['align']) . '">';
+                $html .= '<td class="border px-4 py-2 whitespace-nowrap text-' . htmlspecialchars($header['align']) . '">';
                 $html .= $header['key'] === 'name' ? htmlspecialchars($value) : ($value === 0 ? '' : number_format($value));
                 $html .= '</td>';
             }
@@ -469,31 +482,35 @@ class DailyReport extends Page implements HasForms
             }
         }
 
-        $html .= '<tr class="font-bold"><td class="border border-gray-300 px-4 py-2 text-left">Total</td>';
+        $html .= '<tr class="font-bold"><td class="border px-4 py-2 text-left">Total</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
                 $value = $header['key'] === 'amount' ? '' : ($grandTotals[$header['key']] === 0 ? '' : number_format($grandTotals[$header['key']]));
-                $html .= '<td class="border border-gray-300 px-4 py-2">' . $value . '</td>';
+                $html .= '<td class="border px-4 py-2 whitespace-nowrap">' . $value . '</td>';
             }
         }
         $html .= '</tr>';
 
-        $html .= '<tr class="font-bold"><td class="border border-gray-300 px-4 py-2 text-left">Lifting</td>';
+        $html .= '<tr class="font-bold"><td class="border px-4 py-2 text-left">Lifting</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
                 $value = $header['key'] === 'itopup' ? $liftingTotals['itopup'] : ($header['key'] === 'amount' ? $liftingAmount : ($liftingTotals[$header['key']] ?? 0));
-                $html .= '<td class="border border-gray-300 px-4 py-2 whitespace-nowrap">';
-                $html .= $value === '' || $value === 0 ? '' : ($header['key'] === 'amount' ? $value : number_format((float)$value));
+                $html .= '<td class="border px-4 py-2 whitespace-nowrap" style="color: #16f700;">';
+                if ($header['key'] === 'amount') {
+                    $html .= $value === '' ? '' : $value; // Already formatted with + in $liftingAmount
+                } else {
+                    $html .= $value === 0 ? '' : '+' . number_format((float)$value); // Add + for numerical values
+                }
                 $html .= '</td>';
             }
         }
         $html .= '</tr>';
 
-        $html .= '<tr class="font-bold"><td class="border border-gray-300 px-4 py-2 text-left">Stock</td>';
+        $html .= '<tr class="font-bold"><td class="border px-4 py-2 text-left">Stock</td>';
         foreach ($headers as $header) {
             if ($header['key'] !== 'name') {
                 $value = $header['key'] === 'amount' ? '' : ($stockTotals[$header['key']] ?? 0);
-                $html .= '<td class="border border-gray-300 px-4 py-2">';
+                $html .= '<td class="border px-4 py-2">';
                 $html .= $value === '' || $value === 0 ? '' : number_format((float)$value);
                 $html .= '</td>';
             }
@@ -508,104 +525,105 @@ class DailyReport extends Page implements HasForms
 
     protected function generateSecondPageHtml(): string
     {
-        // Transform the RsoSales products data
+        // Reused logic from generateThirdPageHtml for $transformedProducts
         $transformedProducts = collect($this->rsoSale)
             ->pluck('products')
             ->flatten(1)
             ->groupBy(function ($product) {
-                return $product['code'] . '_' . $product['rate']; // Group by code and rate to consolidate duplicates
+                return $product['code'] . '_' . $product['rate'];
             })
             ->map(function ($group) {
                 $firstProduct = $group->first();
                 return [
-                    'category' => $firstProduct['category'],
-                    'sub_category' => $firstProduct['sub_category'],
-                    'code' => $firstProduct['code'],
-                    'product_id' => $firstProduct['product_id'],
-                    'quantity' => $group->sum('quantity'),
-                    'rate' => $firstProduct['rate'],
-                    'retailer_price' => $firstProduct['retailer_price'],
-                    'lifting_price' => $firstProduct['lifting_price'],
-                    'price' => $firstProduct['price'],
+                    'category'          => $firstProduct['category'],
+                    'sub_category'      => $firstProduct['sub_category'],
+                    'code'              => $firstProduct['code'],
+                    'product_id'        => $firstProduct['product_id'],
+                    'quantity'          => $group->sum('quantity'),
+                    'rate'              => $firstProduct['rate'],
+                    'retailer_price'    => $firstProduct['retailer_price'],
+                    'lifting_price'     => $firstProduct['lifting_price'],
+                    'price'             => $firstProduct['price'],
                 ];
             })
-            ->values();
+            ->values()
+            ->toArray();
 
-        // Group products by category and sort categories alphabetically
-        $groupedByCategory = $transformedProducts
-            ->groupBy('category')
-            ->sortKeys();
-
-        Log::debug('Grouped products by category for Page 2', [
-            'grouped_products' => $groupedByCategory->toArray(),
-            'date' => $this->selectedDate,
-            'house' => $this->selectedHouse,
-        ]);
-
-        // Calculate the grand total
-        $grandTotal = 0;
+        // Calculate total amount
+        $totalAmount = 0;
         foreach ($transformedProducts as $product) {
             $total = $product['quantity'] * $product['rate'];
-            $grandTotal += $total;
+            $totalAmount += $total;
         }
 
-        // Build the HTML for Page 2 using a table with borders
+        // Build table rows
+        $rows = [];
+        foreach ($transformedProducts as $product) {
+            $rows[] = [
+                'code' => $product['code'],
+                'quantity' => $product['quantity'],
+                'rate' => $product['rate'],
+                'total' => $product['quantity'] * $product['rate'],
+            ];
+        }
+
+        // Log the rows for debugging
+        Log::debug('Second Page Rows', ['rows' => $rows]);
+
+        // Build the HTML for Page 2
         $html = '<div class="shadow-md rounded-lg font-bold text-md">';
+
+        // Add CSS for striped table with dark mode support
+        $html .= '<style>';
+        // Light mode (default)
+        $html .= 'table.striped-table tbody tr:nth-child(odd) { background-color: #f9f9f9; }'; // Light gray for odd rows
+        $html .= 'table.striped-table tbody tr:nth-child(even) { background-color: #ffffff; }'; // White for even rows
+        $html .= 'table.striped-table thead { background-color: #e5e7eb; }'; // Slightly darker gray for header
+        $html .= 'table.striped-table { color: #000000; }'; // Black text for light mode
+        $html .= 'table.striped-table th, table.striped-table td { border-color: #d1d5db; }'; // Light gray borders
+        // Dark mode
+        $html .= '@media (prefers-color-scheme: dark) {';
+        $html .= '  table.striped-table tbody tr:nth-child(odd) { background-color: #374151; }'; // Dark gray for odd rows
+        $html .= '  table.striped-table tbody tr:nth-child(even) { background-color: #1f2937; }'; // Darker gray for even rows
+        $html .= '  table.striped-table thead { background-color: #4b5563; }'; // Dark gray for header
+        $html .= '  table.striped-table { color: #e5e7eb; }'; // Light gray text for dark mode
+        $html .= '  table.striped-table th, table.striped-table td { border-color: #4b5563; }'; // Dark gray borders
+        $html .= '}';
+        $html .= '</style>';
+
         $html .= '<div class="text-left">';
-
-        // Start the table with borders
-        $html .= '<table class="border-collapse border border-gray-300">';
-
-        // Table headers
+        $html .= '<table class="border-collapse text-left striped-table">';
         $html .= '<thead>';
         $html .= '<tr>';
-        $html .= '<th class="border border-gray-300 p-2 text-left">Product</th>';
-        $html .= '<th class="border border-gray-300 p-2 text-right">Quantity</th>';
-        $html .= '<th class="border border-gray-300 p-2 text-right">Rate</th>';
-        $html .= '<th class="border border-gray-300 p-2 text-right">Total</th>';
+        $html .= '<th class="border px-4 p-2">Code</th>';
+        $html .= '<th class="border px-4 p-2 text-right">Quantity</th>';
+        $html .= '<th class="border px-4 p-2 text-right">Rate</th>';
+        $html .= '<th class="border px-4 p-2 text-right">Total</th>';
         $html .= '</tr>';
         $html .= '</thead>';
-
-        // Table body
         $html .= '<tbody>';
 
-        // Iterate through each category
-        foreach ($groupedByCategory as $category => $products) {
-            // Calculate category subtotal
-            $categoryTotal = 0;
-            foreach ($products as $product) {
-                $total = $product['quantity'] * $product['rate'];
-                $categoryTotal += $total;
-
-                // Add product row
-                $html .= '<tr>';
-                $html .= '<td class="border border-gray-300 p-2 text-left">' . htmlspecialchars($product['code']) . '</td>';
-                $html .= '<td class="border border-gray-300 p-2 text-right">' . $product['quantity'] . '</td>';
-                $html .= '<td class="border border-gray-300 p-2 text-right">' . $product['rate'] . '</td>';
-                $html .= '<td class="border border-gray-300 p-2 text-right">' . number_format($total) . '</td>';
-                $html .= '</tr>';
-            }
-
-            // Add category subtotal row
+        foreach ($rows as $row) {
             $html .= '<tr>';
-            $html .= '<td colspan="3" class="border border-gray-300 p-2 text-right font-semibold">Subtotal:</td>';
-            $html .= '<td class="border border-gray-300 p-2 text-right font-semibold">' . number_format($categoryTotal) . '</td>';
+            $html .= '<td class="border px-4 p-2">' . htmlspecialchars($row['code']) . '</td>';
+            $html .= '<td class="border px-4 p-2 text-right">' . number_format($row['quantity']) . '</td>';
+            $html .= '<td class="border px-4 p-2 text-right">' . number_format($row['rate'], 2) . '</td>';
+            $html .= '<td class="border px-4 p-2 text-right">' . number_format($row['total'], 2) . '</td>';
             $html .= '</tr>';
         }
 
-        // Add grand total row if grandTotal > 0
-        $html .= '<tr>';
-        $html .= '<td colspan="3" class="border border-gray-300 p-2 text-right font-bold">Grand Total:</td>';
-        $html .= '<td class="border border-gray-300 p-2 text-right font-bold">' . number_format($grandTotal) . '</td>';
+        // Add a total row
+        $html .= '<tr class="font-bold">';
+        $html .= '<td class="border px-4 p-2" colspan="3">Total</td>';
+        $html .= '<td class="border px-4 p-2 text-right">' . number_format($totalAmount, 2) . '</td>';
         $html .= '</tr>';
 
         $html .= '</tbody>';
         $html .= '</table>';
-
         $html .= '</div>';
         $html .= '</div>';
 
-        if ($grandTotal > 0) {
+        if ($rows) {
             return $html;
         }
 
@@ -633,15 +651,15 @@ class DailyReport extends Page implements HasForms
             ->map(function ($group) {
                 $firstProduct = $group->first();
                 return [
-                    'category' => $firstProduct['category'],
-                    'sub_category' => $firstProduct['sub_category'],
-                    'code' => $firstProduct['code'],
-                    'product_id' => $firstProduct['product_id'],
-                    'quantity' => $group->sum('quantity'),
-                    'rate' => $firstProduct['rate'],
-                    'retailer_price' => $firstProduct['retailer_price'],
-                    'lifting_price' => $firstProduct['lifting_price'],
-                    'price' => $firstProduct['price'],
+                    'category'          => $firstProduct['category'],
+                    'sub_category'      => $firstProduct['sub_category'],
+                    'code'              => $firstProduct['code'],
+                    'product_id'        => $firstProduct['product_id'],
+                    'quantity'          => $group->sum('quantity'),
+                    'rate'              => $firstProduct['rate'],
+                    'retailer_price'    => $firstProduct['retailer_price'],
+                    'lifting_price'     => $firstProduct['lifting_price'],
+                    'price'             => $firstProduct['price'],
                 ];
             })
             ->values()
@@ -663,8 +681,8 @@ class DailyReport extends Page implements HasForms
         if ($dailyReport > 0) {
             $rows[] = [
                 'description' => "Daily Report - " . number_format($dailyReport),
-                'operator' => '',
-                'amount' => number_format($adjustedDailyReport, 0),
+                'operator' => '', // Still needed for color logic
+                'amount' => number_format($adjustedDailyReport, 0), // No operator prefix for Daily Report
                 'running_total' => number_format($runningTotal, 0),
             ];
         }
@@ -676,42 +694,70 @@ class DailyReport extends Page implements HasForms
             $operator = $item['operator'] ?? 'N/A';
             $amount = floatval($item['amount'] ?? 0);
 
+            $operatorPrefix = '';
             if ($operator === '-') {
                 $runningTotal -= $amount;
-                $operatorDisplay = '(-)';
+                $operatorPrefix = '-';
             } else {
                 $runningTotal += $amount;
-                $operatorDisplay = '(+)';
+                $operatorPrefix = '+';
             }
 
             $rows[] = [
                 'description' => $title,
-                'operator' => $operatorDisplay,
-                'amount' => number_format($amount, 0),
+                'operator' => $operatorPrefix, // Store operator for color logic
+                'amount' => $operatorPrefix . number_format($amount, 0), // Prepend operator to amount
                 'running_total' => number_format($runningTotal, 0),
             ];
         }
 
+        // Log the rows to debug the values
+        Log::debug('Third Page Rows', ['rows' => $rows]);
+
         // Build the HTML for Page 3
         $html = '<div class="shadow-md rounded-lg font-bold text-md">';
+
+        // Add CSS for striped table with dark mode support
+        $html .= '<style>';
+        // Light mode (default)
+        $html .= 'table.striped-table tbody tr:nth-child(odd) { background-color: #f9f9f9; }'; // Light gray for odd rows
+        $html .= 'table.striped-table tbody tr:nth-child(even) { background-color: #ffffff; }'; // White for even rows
+        $html .= 'table.striped-table thead { background-color: #e5e7eb; }'; // Slightly darker gray for header
+        $html .= 'table.striped-table { color: #000000; }'; // Black text for light mode
+        $html .= 'table.striped-table th, table.striped-table td { border-color: #d1d5db; }'; // Light gray borders
+        // Dark mode
+        $html .= '@media (prefers-color-scheme: dark) {';
+        $html .= '  table.striped-table tbody tr:nth-child(odd) { background-color: #374151; }'; // Dark gray for odd rows
+        $html .= '  table.striped-table tbody tr:nth-child(even) { background-color: #1f2937; }'; // Darker gray for even rows
+        $html .= '  table.striped-table thead { background-color: #4b5563; }'; // Dark gray for header
+        $html .= '  table.striped-table { color: #e5e7eb; }'; // Light gray text for dark mode
+        $html .= '  table.striped-table th, table.striped-table td { border-color: #4b5563; }'; // Dark gray borders
+        $html .= '}';
+        $html .= '</style>';
+
         $html .= '<div class="text-left">';
-        $html .= '<table class="border-collapse border border-gray-300">';
+        $html .= '<table class="border-collapse text-left striped-table">';
         $html .= '<thead>';
         $html .= '<tr>';
-        $html .= '<th class="border border-gray-300 px-4 p-2 text-left">Description</th>';
-        $html .= '<th class="border border-gray-300 px-4 p-2 text-center">Operation</th>';
-        $html .= '<th class="border border-gray-300 px-4 p-2 text-right">Amount</th>';
-        $html .= '<th class="border border-gray-300 px-4 p-2 text-right">Running Total</th>';
+        $html .= '<th class="border px-4 p-2 text-left">Description</th>';
+        $html .= '<th class="border px-4 p-2 text-right">Amount</th>'; // Removed Operation column
+        $html .= '<th class="border px-4 p-2 text-right">Running Total</th>';
         $html .= '</tr>';
         $html .= '</thead>';
         $html .= '<tbody>';
 
         foreach ($rows as $row) {
             $html .= '<tr>';
-            $html .= '<td class="border border-gray-300 px-4 p-2">' . htmlspecialchars($row['description']) . '</td>';
-            $html .= '<td class="border border-gray-300 px-4 p-2 text-center">' . htmlspecialchars($row['operator']) . '</td>';
-            $html .= '<td class="border border-gray-300 px-4 p-2 text-right">' . htmlspecialchars($row['amount']) . '</td>';
-            $html .= '<td class="border border-gray-300 px-4 p-2 text-right">' . htmlspecialchars($row['running_total']) . '</td>';
+            $html .= '<td class="border px-4 p-2">' . htmlspecialchars($row['description']) . '</td>';
+            // Apply inline color to Amount column based on operator
+            $amountStyle = '';
+            if ($row['operator'] === '-') {
+                $amountStyle = 'style="color: red;"';
+            } elseif ($row['operator'] === '+') {
+                $amountStyle = 'style="color: #16f700;"';
+            }
+            $html .= '<td class="border px-4 p-2 text-right" ' . $amountStyle . '>' . htmlspecialchars($row['amount']) . '</td>';
+            $html .= '<td class="border px-4 p-2 text-right">' . htmlspecialchars($row['running_total']) . '</td>';
             $html .= '</tr>';
         }
 

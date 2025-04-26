@@ -33,19 +33,26 @@ class ItopReplaceResource extends Resource
     {
         return $form
             ->schema([
-                Select::make('user_id')
-                    ->relationship('user', 'name', fn ($query) => $query->with('roles')->select('id', 'name'))
-                    ->getOptionLabelFromRecordUsing(fn($record) => $record->name ."(". Str::title($record->roles->first()?->name).")")
-                    ->searchable()
-                    ->preload()
-                    ->required()
-                    ->visible(Auth::user()->hasRole('super_admin')), // Only visible to super_admin
                 Select::make('retailer_id')
                     ->label('Itop Number')
-                    ->relationship('retailer', 'itop_number', fn($query) => $query->select('id','code','itop_number')->where('enabled','Y'))
+                    ->relationship('retailer', 'itop_number', function ($query) {
+                        // Base query: only fetch enabled retailers
+                        $query->select('id', 'code', 'itop_number')
+                            ->where('enabled', 'Y');
+
+                        // Check if the user is not a super admin
+                        $user = auth()->user();
+                        if ($user && !$user->hasRole('super_admin')) {
+                            // If the user has the 'rso' role, filter retailers by the logged-in RSO
+                            if ($user->hasRole('rso')) {
+                                $query->where('rso_id', $user->id);
+                            }
+                        }
+
+                        return $query;
+                    })
                     ->getOptionLabelFromRecordUsing(fn($record) => "{$record->code} - {$record->itop_number}")
                     ->searchable()
-                    ->preload()
                     ->required(),
                 TextInput::make('sim_serial')
                     ->required()
@@ -59,6 +66,7 @@ class ItopReplaceResource extends Resource
                     ->integer()
                     ->maxLength(6),
                 Select::make('reason')
+                    ->required()
                     ->options([
                         'damaged' => 'Damaged',
                         'stolen' => 'Stolen',
@@ -162,12 +170,12 @@ class ItopReplaceResource extends Resource
                     'md' => 2,
                 ])
                 ->schema([
-                    TextEntry::make('user.name'),
-                    TextEntry::make('retailer.name'),
+                    TextEntry::make('user.name')->label('Request placed by'),
+                    TextEntry::make('retailer')->formatStateUsing(fn($record) => $record->retailer ? "{$record->retailer->name} ({$record->retailer->itop_number})" : 'N/A'),
                     TextEntry::make('sim_serial'),
                     TextEntry::make('balance'),
-                    TextEntry::make('reason')->default('N/A'),
-                    TextEntry::make('description')->default('N/A'),
+                    TextEntry::make('reason')->formatStateUsing(fn($record) => Str::title($record->reason))->default('N/A'),
+                    TextEntry::make('description')->formatStateUsing(fn($record) => Str::title($record->description))->default('N/A'),
                     TextEntry::make('completed_at')->default('N/A'),
                     TextEntry::make('created_at')->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
                     TextEntry::make('updated_at')->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
