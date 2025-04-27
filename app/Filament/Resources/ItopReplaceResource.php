@@ -78,7 +78,8 @@ class ItopReplaceResource extends Resource
                         'processing' => 'Processing',
                         'complete' => 'Complete',
                     ])
-                    ->default('pending'),
+                    ->default('pending')
+                    ->visible(fn () => auth()->user()->hasRole('super_admin') && request()->routeIs('filament.admin.resources.*.edit')), // Visible only on edit page for super_admin
                 TextInput::make('remarks')
                     ->maxLength(255)
                     ->default(null),
@@ -219,6 +220,19 @@ class ItopReplaceResource extends Resource
 
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        return parent::getEloquentQuery()->latest('created_at');
+        $query = parent::getEloquentQuery()->latest('created_at');
+
+        // Skip role-based filtering for view and edit routes
+        if (request()->routeIs('filament.admin.resources.retailers.view') ||
+            request()->routeIs('filament.admin.resources.retailers.edit')) {
+            return $query;
+        }
+
+        // Apply role-based filtering
+        if (Auth::user()->hasRole('super_admin')) {
+            return $query;
+        }
+
+        return $query->where('user_id', Auth::id());
     }
 }

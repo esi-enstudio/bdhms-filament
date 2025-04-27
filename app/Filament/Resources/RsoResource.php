@@ -8,6 +8,8 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Select;
@@ -239,22 +241,21 @@ class RsoResource extends Resource
         ];
     }
 
-    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->latest('created_at');
+        $query = parent::getEloquentQuery()->latest('created_at');
+
+        // Skip role-based filtering for view and edit routes
+        if (request()->routeIs('filament.admin.resources.retailers.view') ||
+            request()->routeIs('filament.admin.resources.retailers.edit')) {
+            return $query;
+        }
+
+        // Apply role-based filtering
+        if (Auth::user()->hasRole('super_admin')) {
+            return $query;
+        }
+
+        return $query->where('user_id', Auth::id());
     }
-
-//    public static function getEloquentQuery(): Builder
-//    {
-//        $user = Auth::user();
-
-//        // If the user is a super admin, show all RSOs
-//        if ($user->hasRole('super admin'))
-//        {
-//            return parent::getEloquentQuery();
-//        }
-
-//        // Otherwise, only show the RSO that belongs to the logged-in user
-//        return parent::getEloquentQuery()->where('user_id', $user->id);
-//    }
 }

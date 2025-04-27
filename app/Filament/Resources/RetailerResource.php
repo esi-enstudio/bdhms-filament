@@ -17,6 +17,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\DatePicker;
@@ -177,11 +178,9 @@ class RetailerResource extends Resource
         ];
     }
 
-    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery()
-            ->select(['id', 'house_id', 'rso_id', 'code', 'name', 'itop_number', 'enabled', 'sso', 'created_at', 'updated_at'])
-            ->latest('created_at');
+        $query = parent::getEloquentQuery()->latest('created_at');
 
         // Skip role-based filtering for view and edit routes
         if (request()->routeIs('filament.admin.resources.retailers.view') ||
@@ -190,7 +189,7 @@ class RetailerResource extends Resource
         }
 
         // Apply role-based filtering
-        if (Auth::user()->hasRole('super admin')) {
+        if (Auth::user()->hasRole('super_admin')) {
             return $query;
         }
 
