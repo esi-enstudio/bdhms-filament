@@ -26,11 +26,12 @@ class ProductsImport implements ToCollection, WithHeadingRow, WithChunkReading
                     'sub_category'  => $row['sub_category'],
                     'price'         => $row['price'],
                     'lifting_price' => $row['lifting_price'],
+                    'retailer_price' => $row['retailer_price'],
                     'offer'         => $row['offer'],
                 ];
             })->toArray();
 
-            Product::query()->upsert($data, ['code'], ['name', 'category','sub_category','price','lifting_price','offer']);
+            Product::query()->upsert($data, ['code'], ['name', 'category','sub_category','price','lifting_price','retailer_price','offer']);
 
         } catch (ValidationException $e) {
 

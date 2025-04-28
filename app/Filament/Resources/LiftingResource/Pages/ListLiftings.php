@@ -16,7 +16,7 @@ class ListLiftings extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()->label('New Lifting'),
         ];
     }
 
@@ -31,8 +31,8 @@ class ListLiftings extends ListRecords
                 ->modifyQueryUsing(fn(Builder $query) => $query->whereDate('created_at', Carbon::today()))
                 ->badge($todayLiftingCount),
 
-            'Older' => Tab::make()
-                ->modifyQueryUsing(fn(Builder $query) => $query->whereNot(fn($subQuery) => $subQuery->whereDate('created_at', Carbon::today())))
+            'ALL' => Tab::make()
+                ->modifyQueryUsing(fn(Builder $query) => $query)
                 ->badge($olderLiftingCount),
         ];
     }

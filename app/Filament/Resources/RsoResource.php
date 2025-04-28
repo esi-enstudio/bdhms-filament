@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Models\Rso;
 use App\Models\User;
+use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
@@ -26,7 +27,7 @@ use Filament\Tables\Actions\DeleteBulkAction;
 use App\Filament\Resources\RsoResource\RelationManagers;
 use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 
-class RsoResource extends Resource
+class RsoResource extends Resource implements HasShieldPermissions
 {
     protected static ?string $model = Rso::class;
 
@@ -257,5 +258,18 @@ class RsoResource extends Resource
         }
 
         return $query->where('user_id', Auth::id());
+    }
+
+    public static function getPermissionPrefixes(): array
+    {
+        return [
+            'view',
+            'view_any',
+            'create',
+            'update',
+            'delete',
+            'delete_any',
+            'import_btn',
+        ];
     }
 }

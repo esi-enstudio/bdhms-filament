@@ -38,16 +38,6 @@ class ItopReplace extends Model
     protected $guarded = [];
     protected $with = ['user','retailer'];
 
-    protected array $searchable = [
-        'sim_serial',
-        'remarks',
-        'description',
-        'user.name',
-        'user.phone',
-        'retailer.itop_number',
-        'retailer.code',
-    ];
-
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

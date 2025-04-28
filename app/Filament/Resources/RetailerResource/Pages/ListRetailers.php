@@ -20,10 +20,13 @@ class ListRetailers extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
+
             Actions\Action::make('retailerImport')
                 ->label('Import Retailers')
                 ->icon('heroicon-o-arrow-right-end-on-rectangle')
                 ->color('success')
+                ->visible(fn () => auth()->user()->hasPermissionTo('import_btn_retailer')) // Show/hide based on permission
+                ->authorize('import_btn_retailer') // Protect against unauthorized execution
                 ->form([
                     View::make('components.download-sample-files.sample-retailer-list'),
                     FileUpload::make('retailerImport')

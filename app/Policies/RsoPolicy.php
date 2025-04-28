@@ -105,4 +105,12 @@ class RsoPolicy
     {
         return $user->can('reorder_rso');
     }
+
+    /**
+     * Determine whether the user can import rso.
+     */
+    public function import(User $user): bool
+    {
+        return $user->can('import_btn_rso');
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Carbon\Carbon;
 use App\Models\Rso;
 use App\Models\User;
@@ -28,7 +29,7 @@ use Illuminate\Support\Facades\Auth;
 use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 use App\Filament\Resources\RetailerResource\RelationManagers;
 
-class RetailerResource extends Resource
+class RetailerResource extends Resource implements HasShieldPermissions
 {
     protected static ?string $model = Retailer::class;
 
@@ -194,5 +195,18 @@ class RetailerResource extends Resource
         }
 
         return $query->where('rso_id', Rso::firstWhere('user_id', Auth::id())->id);
+    }
+
+    public static function getPermissionPrefixes(): array
+    {
+        return [
+            'view',
+            'view_any',
+            'create',
+            'update',
+            'delete',
+            'delete_any',
+            'import_btn',
+        ];
     }
 }

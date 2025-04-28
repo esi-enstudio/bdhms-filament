@@ -3,10 +3,12 @@
 namespace App\Filament\Resources;
 
 use App\Models\User;
+use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
@@ -28,7 +30,7 @@ use Filament\Infolists\Components\Grid;
 use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 use Filament\Infolists\Components\Section as InfolistSection;
 
-class UserResource extends Resource
+class UserResource extends Resource implements HasShieldPermissions
 {
     protected static ?string $model = User::class;
 
@@ -187,17 +189,32 @@ class UserResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->latest('created_at');
+        $query = parent::getEloquentQuery()->latest('created_at');
+
+        // Skip role-based filtering for view and edit routes
+        if (request()->routeIs('filament.admin.resources.retailers.view') ||
+            request()->routeIs('filament.admin.resources.retailers.edit')) {
+            return $query;
+        }
+
+        // Apply role-based filtering
+        if (Auth::user()->hasRole('super_admin')) {
+            return $query;
+        }
+
+        return $query->where('id', Auth::id());
     }
 
-//    public static function getEloquentQuery(): Builder
-//    {
-//        // If the user is a super admin, show all Users
-//        if (Auth::user()->hasRole('super admin'))
-//        {
-//            return parent::getEloquentQuery();
-//        }
-//
-//        return parent::getEloquentQuery()->where('id', Auth::id());
-//    }
+    public static function getPermissionPrefixes(): array
+    {
+        return [
+            'view',
+            'view_any',
+            'create',
+            'update',
+            'delete',
+            'delete_any',
+            'import_btn',
+        ];
+    }
 }

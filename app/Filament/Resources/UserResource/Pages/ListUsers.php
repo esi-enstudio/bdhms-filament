@@ -23,6 +23,8 @@ class ListUsers extends ListRecords
                 ->label('Import Users')
                 ->icon('heroicon-o-document-arrow-up')
                 ->color('warning')
+                ->visible(fn () => auth()->user()->hasPermissionTo('import_btn_user')) // Show/hide based on permission
+                ->authorize('import_btn_user') // Protect against unauthorized execution
                 ->form([
                     View::make('components.download-sample-files.user-sample'),
                     FileUpload::make('importUsers')

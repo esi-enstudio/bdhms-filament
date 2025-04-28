@@ -24,6 +24,8 @@ class ListRsos extends ListRecords
             ->label('Import Rsos')
             ->icon('heroicon-o-document-arrow-up')
             ->color('danger')
+            ->visible(fn () => auth()->user()->hasPermissionTo('import_btn_rso')) // Show/hide based on permission
+            ->authorize('import_btn_rso') // Protect against unauthorized execution
             ->form([
                 View::make('components.download-sample-files.rso-sample'),
                 FileUpload::make('importRsos')
@@ -40,29 +42,6 @@ class ListRsos extends ListRecords
                     ->body('Rsos imported successfully.')
                     ->success()
                     ->send();
-
-                try{
-
-                }catch(\Exception $e){
-                    $errorMessages = collect($e->failures())
-                    ->map(fn ($failure) => "Row {$failure->row()}: " . implode(', ', $failure->errors()))
-                    ->implode('<br>');
-
-                    foreach ($e->failures() as $failure) {
-                        Log::error('Rso Import Validation Error', [
-                            'row' => $failure->row(),
-                            'attribute' => $failure->attribute(),
-                            'errors' => $failure->errors(),
-                            'values' => $failure->values(),
-                        ]);
-                    }
-
-                    Notification::make()
-                        ->title('Validation Failed')
-                        ->danger()
-                        ->body($errorMessages)
-                        ->send();
-                }
             }),
         ];
     }

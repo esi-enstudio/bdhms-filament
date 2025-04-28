@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources;
 
+use App\Models\Rso;
 use Carbon\Carbon;
 use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use App\Models\ItopReplace;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Filament\Infolists\Infolist;
@@ -40,18 +42,31 @@ class ItopReplaceResource extends Resource
                         $query->select('id', 'code', 'itop_number')
                             ->where('enabled', 'Y');
 
-                        // Check if the user is not a super admin
-                        $user = auth()->user();
-                        if ($user && !$user->hasRole('super_admin')) {
-                            // If the user has the 'rso' role, filter retailers by the logged-in RSO
+                        // Get the authenticated user
+                        $user = Auth::user();
+
+                        if ($user) {
                             if ($user->hasRole('rso')) {
-                                $query->where('rso_id', $user->id);
+                                $rsoId = Rso::select('id')->firstWhere(['status' => 'active', 'user_id' => $user->id])?->id;
+                                if ($rsoId) {
+                                    $query->where('rso_id', $rsoId);
+                                } else {
+                                    // If no RSO record is found, return no retailers
+                                    $query->whereRaw('1 = 0');
+                                }
+                            }
+                            // If the user has the 'supervisor' role, filter retailers by the logged-in supervisor
+                            elseif ($user->hasRole('supervisor')) {
+                                $query->where('user_id', $user->id);
                             }
                         }
 
                         return $query;
                     })
                     ->getOptionLabelFromRecordUsing(fn($record) => "{$record->code} - {$record->itop_number}")
+                    ->helperText(function (){
+
+                    })
                     ->searchable()
                     ->required(),
                 TextInput::make('sim_serial')
@@ -218,7 +233,7 @@ class ItopReplaceResource extends Resource
             ]);
     }
 
-    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery()->latest('created_at');
 

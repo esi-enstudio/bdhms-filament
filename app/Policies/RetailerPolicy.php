@@ -105,4 +105,12 @@ class RetailerPolicy
     {
         return $user->can('reorder_retailer');
     }
+
+    /**
+     * Determine whether the user can import retailer.
+     */
+    public function import(User $user): bool
+    {
+        return $user->can('import_btn_retailer');
+    }
 }

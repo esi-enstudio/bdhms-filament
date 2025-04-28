@@ -193,7 +193,96 @@ class LiftingResource extends Resource
                                     'cash' => 'Cash',
                                     'credit' => 'Credit',
                                 ]),
-                    ]),
+                    ])
+                        ->extraAttributes(['class' => 'block md:hidden']), // Visible on small screens, hidden on medium and larger
+
+                    TableRepeater::make('products')
+                        ->reorderable()
+                        ->cloneable()
+                        ->hidden(fn(Get $get) => $get('status') == 'no lifting')
+                        ->afterStateUpdated(function(Get $get, Set $set){
+                            // deposit খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
+                            $deposit = !empty($get('deposit')) ? intval($get('deposit')) : 0;
+
+                            $productsGrandTotal = collect($get('products'))->map(function ($items){
+                                // quantity খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
+                                $quantity = !empty($items['quantity']) ? intval($items['quantity']) : 0;
+
+                                // lifting_price খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
+                                $liftingPrice = !empty($items['lifting_price']) ? floatval($items['lifting_price']) : 0;
+
+                                // গুণ করুন এবং রিটার্ন করুন
+                                return $quantity * $liftingPrice;
+                            })->sum();
+
+                            $set('itopup', round(($deposit - $productsGrandTotal) / .9625));
+                        })
+                        ->addAction(function(Get $get, Set $set){
+                            // deposit খালি থাকলে 0 সেট করুন, অন্যথায় সংখ্যায় কনভার্ট করুন
+                            $deposit = !empty($get('deposit')) ? intval($get('deposit')) : 0;
+
+                            $productsGrandTotal = collect($get('products'))->map(function ($items){
+                                return $items['quantity'] * $items['lifting_price'];
+                            })->sum();
+
+                            $set('itopup', round(($deposit - $productsGrandTotal) / .9625));
+                        })
+                        ->schema([
+                            Select::make('product_id')
+                                ->label('Name')
+                                ->live()
+                                ->searchable()
+                                ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? "Lifting Price: " . $get('lifting_price') : '')
+                                ->afterStateUpdated(function(Get $get, Set $set){
+                                    if(empty($get('product_id'))){
+                                        // Reset field
+                                        $set('lifting_value', 0);
+                                        $set('lifting_price', 0);
+                                        $set('price', 0);
+
+                                        // Send notification
+                                        Notification::make()
+                                            ->title('Warning')
+                                            ->body('Please select a product.')
+                                            ->warning()
+                                            ->persistent()
+                                            ->send();
+                                    }else{
+                                        $product = Product::find($get('product_id'));
+
+                                        if($product){
+                                            $set('lifting_price', $product->lifting_price);
+                                            $set('price', $product->price);
+                                            $set('category', $product->category);
+                                            $set('sub_category', $product->sub_category);
+                                            $set('code', $product->code);
+                                        }
+                                    }
+                                })
+                                ->options(fn() => Product::where('status','active')->pluck('code','id')),
+
+                            Hidden::make('category'),
+                            Hidden::make('sub_category'),
+                            Hidden::make('code'),
+
+                            TextInput::make('quantity')
+                                ->numeric()
+                                ->live(onBlur:true)
+                                ->required(fn($get) => $get('product_id') !== null)
+                                ->helperText(fn($get) => !empty($get('product_id')) && $get('lifting_price') !== null ? $get('lifting_price').'x'.$get('quantity').' = '. number_format(round($get('lifting_price') * $get('quantity'))).' | '.$get('price').'x'.$get('quantity').' = '. number_format(round($get('price') * $get('quantity'))): ''),
+
+                            Hidden::make('lifting_price'),
+                            Hidden::make('price'),
+
+                            Select::make('mode')
+                                ->required(fn($get) => $get('product_id') !== null)
+                                ->options([
+                                    'cash' => 'Cash',
+                                    'credit' => 'Credit',
+                                ]),
+                        ])
+                        ->extraAttributes(['class' => 'hidden md:block']), // Visible on small screens, hidden on medium and larger
+
                 ]),
 
                 // Overview
