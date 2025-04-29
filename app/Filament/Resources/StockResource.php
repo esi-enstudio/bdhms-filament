@@ -13,6 +13,7 @@ use App\Models\Product;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Hidden;
@@ -114,19 +115,19 @@ class StockResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('house.name')
+                TextColumn::make('house.name')
                     ->numeric()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('itopup')
+                TextColumn::make('itopup')
                     ->formatStateUsing(function ($state) {
                         return number_format($state, 0, '.', ',');
                     }),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
                     ->sortable(),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())

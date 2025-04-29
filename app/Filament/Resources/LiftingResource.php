@@ -13,6 +13,7 @@ use App\Models\Product;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Filament\Infolists\Infolist;
@@ -402,30 +403,30 @@ class LiftingResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('house.code')
+                TextColumn::make('house.code')
                     ->label('House')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('user.name')
+                TextColumn::make('user.name')
                     ->numeric()
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->sortable(),
-                Tables\Columns\TextColumn::make('itopup')
+                TextColumn::make('itopup')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('deposit')
+                TextColumn::make('deposit')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('attempt')
+                TextColumn::make('attempt')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('mode')
+                TextColumn::make('mode')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('status')
+                TextColumn::make('status')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
                     ->sortable(),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->dateTime()
                     ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString())
                     ->sortable(),

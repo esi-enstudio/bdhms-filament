@@ -26,6 +26,7 @@ use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -292,27 +293,27 @@ class RsoLiftingResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('house.name')
-                    ->description(fn(RsoLifting $rsoLifting): string => $rsoLifting->house->code)
+                TextColumn::make('house.name')
+                    ->description(fn($record): string => $record->house->code)
                     ->sortable(),
-                Tables\Columns\TextColumn::make('rso.name')
-                    ->description(fn(RsoLifting $rsoLifting): string => $rsoLifting->rso->itop_number)
+                TextColumn::make('rso.name')
+                    ->description(fn($record): string => $record->rso->itop_number)
                     ->sortable(),
-                Tables\Columns\TextColumn::make('itopup')
+                TextColumn::make('itopup')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('status')
+                TextColumn::make('status')
                     ->searchable()
                     ->badge()
                     ->color('success')
                     ->formatStateUsing(fn(string $state): string => Str::title($state)),
-                Tables\Columns\TextColumn::make('remarks')
+                TextColumn::make('remarks')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
-                Tables\Columns\TextColumn::make('updated_at')
+                TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

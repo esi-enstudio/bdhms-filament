@@ -6,6 +6,7 @@ use App\Models\Rso;
 use Carbon\Carbon;
 use Filament\Tables;
 use Filament\Forms\Form;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use App\Models\ItopReplace;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,6 +23,7 @@ use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Forms\Components\DateTimePicker;
 use App\Filament\Resources\ItopReplaceResource\Pages;
+use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class ItopReplaceResource extends Resource
 {
@@ -91,12 +93,14 @@ class ItopReplaceResource extends Resource
                     ->options([
                         'pending' => 'Pending',
                         'processing' => 'Processing',
+                        'canceled' => 'Canceled',
                         'complete' => 'Complete',
                     ])
                     ->default('pending')
                     ->visible(fn () => auth()->user()->hasRole('super_admin') && request()->routeIs('filament.admin.resources.*.edit')), // Visible only on edit page for super_admin
                 TextInput::make('remarks')
                     ->maxLength(255)
+                    ->visible(fn() => Auth::user()->hasRole('super_admin'))
                     ->default(null),
                 TextInput::make('description')
                     ->maxLength(255)
@@ -106,23 +110,55 @@ class ItopReplaceResource extends Resource
             ]);
     }
 
+    /**
+     * @throws \Exception
+     */
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
                 TextColumn::make('user.name')
-                    ->numeric()
+                    ->description(function ($record){
+                        $user = $record->user;
+                        return $user ? "{$user->email}" : "";
+                    })
                     ->sortable(),
                 TextColumn::make('retailer.name')
-                    ->numeric()
+                    ->description(function ($record){
+                        $retailer = $record->retailer;
+                        return $retailer ? "{$retailer->itop_number}" : "";
+                    })
                     ->sortable(),
                 TextColumn::make('sim_serial')
+                    ->sortable()
                     ->searchable(),
                 TextColumn::make('balance')
+                    ->sortable()
                     ->searchable(),
                 TextColumn::make('reason')
+                    ->formatStateUsing(fn(string $state): string => Str::title($state))
+                    ->sortable()
                     ->searchable(),
                 TextColumn::make('status')
+                    ->sortable()
+                    ->badge()
+                    ->color(function ($state){
+                        if ($state == "pending") {
+                            return 'warning';
+                        }elseif ($state == "canceled")
+                        {
+                            return 'danger';
+                        }elseif ($state == "processing")
+                        {
+                            return 'primary';
+                        }elseif ($state == "complete")
+                        {
+                            return 'success';
+                        }
+
+                        return false;
+                    })
+                    ->formatStateUsing(fn(string $state): string => Str::title($state))
                     ->searchable(),
                 TextColumn::make('remarks')
                     ->searchable()
@@ -136,8 +172,7 @@ class ItopReplaceResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->sortable(),
                 TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
@@ -145,7 +180,41 @@ class ItopReplaceResource extends Resource
             ])
             ->defaultPaginationPageOption(5)
             ->filters([
-                //
+                SelectFilter::make('status')
+                    ->label('Status')
+                    ->options(function () {
+                        // Access the model using static::$model
+                        $itopReplace = static::$model;
+
+                        // Get distinct status values from the ItopReplace table
+                        return $itopReplace::query()
+                            ->distinct()
+                            ->pluck('status')
+                            ->filter() // Remove null values
+                            ->mapWithKeys(function ($status) {
+                                return [$status => ucfirst($status)]; // e.g., 'pending' => 'Pending'
+                            })
+                            ->toArray();
+                    }),
+
+                SelectFilter::make('reason')
+                    ->label('Reason')
+                    ->options(function () {
+                        // Access the model using static::$model
+                        $itopReplace = static::$model;
+
+                        // Get distinct status values from the ItopReplace table
+                        return $itopReplace::query()
+                            ->distinct()
+                            ->pluck('reason')
+                            ->filter() // Remove null values
+                            ->mapWithKeys(function ($reason) {
+                                return [$reason => ucfirst($reason)]; // e.g., 'stolen' => 'Stolen'
+                            })
+                            ->toArray();
+                    }),
+
+                DateRangeFilter::make('created_at')->label('Date Range'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

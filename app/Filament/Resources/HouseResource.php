@@ -60,21 +60,21 @@ class HouseResource extends Resource
             ->columns([
                 TextColumn::make('name')
                     ->searchable(['name','code'])
-                    ->description(fn(House $house): string => $house->code),
+                    ->description(fn($record): string => $record->code),
                 TextColumn::make('region')
                     ->searchable(['region','cluster'])
-                    ->description(fn(House $house): string => $house->cluster),
+                    ->description(fn($record): string => $record->cluster),
                 TextColumn::make('thana')
-                    ->description(fn(House $house): string => $house->district)
+                    ->description(fn($record): string => $record->district)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('email'),
                 TextColumn::make('address')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('proprietor_name')
-                    ->description(fn(House $house): string => $house->contact_number)
+                    ->description(fn($record): string => $record->contact_number)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('poc_name')
-                    ->description(fn(House $house): string => $house->poc_number)
+                    ->description(fn($record): string => $record->poc_number)
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('lifting_date')
                     ->dateTime()

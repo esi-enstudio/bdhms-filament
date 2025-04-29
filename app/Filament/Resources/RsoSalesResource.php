@@ -390,10 +390,10 @@ class RsoSalesResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('house.name')
-                    ->description(fn(RsoSales $rsoSales): string => $rsoSales->house->code)
+                    ->description(fn($record): string => $record->house->code)
                     ->sortable(),
                 TextColumn::make('rso.name')
-                    ->description(fn(RsoSales $rsoSales): string => $rsoSales->rso->itop_number)
+                    ->description(fn($record): string => $record->rso->itop_number)
                     ->sortable(),
                 TextColumn::make('itopup')
                     ->numeric()
