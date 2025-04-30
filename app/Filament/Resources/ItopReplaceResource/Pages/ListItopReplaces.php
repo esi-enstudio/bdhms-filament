@@ -5,6 +5,8 @@ namespace App\Filament\Resources\ItopReplaceResource\Pages;
 use App\Filament\Resources\ItopReplaceResource;
 use Carbon\Carbon;
 use Filament\Actions;
+use Filament\Actions\Action;
+use Filament\Forms\Components\View;
 use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,9 +19,14 @@ class ListItopReplaces extends ListRecords
     {
         return [
             Actions\CreateAction::make()->label('Add New')->icon('heroicon-o-plus'),
-            Actions\CreateAction::make()
-                ->label('Mail Format')
-                ->icon('heroicon-o-envelope'),
+//            Action::make('mailFormat')
+//                ->label('Mail Format')
+//                ->icon('heroicon-o-envelope')
+//                ->visible(fn () => auth()->user()->hasPermissionTo('mail_format_btn_itop::replace'))
+//                ->authorize('mail_format_btn_itop::replace')
+//                ->form([
+//                    View::make('components.itop-replace.mail-format'),
+//                ]),
         ];
     }
 

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -20,8 +22,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @method static firstOrCreate(string[] $array, array $array1)
  * @method static whereIn(string $string, $usersNumber)
  * @property mixed|string $phone
+ * @property mixed $email
  */
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements MustVerifyEmail, FilamentUser
 {
     use HasFactory, Notifiable, HasRoles;
 
@@ -99,5 +102,10 @@ class User extends Authenticatable implements MustVerifyEmail
     public function houses(): BelongsToMany
     {
         return $this->belongsToMany(House::class, 'house_user')->withTimestamps();
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->hasVerifiedEmail(); // Extra layer, using "&& str_ends_with($this->email, '@bdhms.com')"
     }
 }

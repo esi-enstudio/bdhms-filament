@@ -3,7 +3,11 @@
 namespace App\Filament\Resources;
 
 use App\Models\Rso;
+use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Carbon\Carbon;
+use Exception;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Set;
 use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Filters\SelectFilter;
@@ -25,7 +29,7 @@ use Filament\Forms\Components\DateTimePicker;
 use App\Filament\Resources\ItopReplaceResource\Pages;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
-class ItopReplaceResource extends Resource
+class ItopReplaceResource extends Resource implements HasShieldPermissions
 {
     protected static ?string $model = ItopReplace::class;
 
@@ -97,7 +101,17 @@ class ItopReplaceResource extends Resource
                         'complete' => 'Complete',
                     ])
                     ->default('pending')
-                    ->visible(fn () => auth()->user()->hasRole('super_admin') && request()->routeIs('filament.admin.resources.*.edit')), // Visible only on edit page for super_admin
+                    ->live()
+                    ->afterStateUpdated(function ($state, Set $set){
+                        // When status is set to 'complete', update completed_at to the current datetime
+                        if ($state === 'complete') {
+                            $set('completed_at', now()->toDateTimeString());
+                        } else {
+                            // Optional: Clear completed_at if status is changed to something other than 'complete'
+                            $set('completed_at', null);
+                        }
+                    })
+                    ->visible(fn () => Auth::user()->hasRole('super_admin')), // Visible only for super_admin
                 TextInput::make('remarks')
                     ->maxLength(255)
                     ->visible(fn() => Auth::user()->hasRole('super_admin'))
@@ -105,13 +119,13 @@ class ItopReplaceResource extends Resource
                 TextInput::make('description')
                     ->maxLength(255)
                     ->default(null),
-                DateTimePicker::make('completed_at')->visibleOn('edit'),
+                Hidden::make('completed_at'),
 
             ]);
     }
 
     /**
-     * @throws \Exception
+     * @throws Exception
      */
     public static function table(Table $table): Table
     {
@@ -255,13 +269,17 @@ class ItopReplaceResource extends Resource
                     'md' => 2,
                 ])
                 ->schema([
-                    TextEntry::make('user.name')->label('Request placed by'),
-                    TextEntry::make('retailer')->formatStateUsing(fn($record) => $record->retailer ? "{$record->retailer->name} ({$record->retailer->itop_number})" : 'N/A'),
+                    TextEntry::make('user.name')
+                        ->label('Request placed by')->formatStateUsing(fn($record) => $record->user ? "{$record->user->name} ({$record->user->rso->itop_number})" : 'N/A'),
+
+                    TextEntry::make('retailer')
+                        ->formatStateUsing(fn($record) => $record->retailer ? "{$record->retailer->name} ({$record->retailer->itop_number})" : 'N/A'),
+
                     TextEntry::make('sim_serial'),
                     TextEntry::make('balance'),
                     TextEntry::make('reason')->formatStateUsing(fn($record) => Str::title($record->reason))->default('N/A'),
-                    TextEntry::make('description')->formatStateUsing(fn($record) => Str::title($record->description))->default('N/A'),
-                    TextEntry::make('completed_at')->default('N/A'),
+                    TextEntry::make('description')->default('N/A')->formatStateUsing(fn($record) => Str::title($record->description)),
+                    TextEntry::make('completed_at')->default('N/A')->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
                     TextEntry::make('created_at')->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
                     TextEntry::make('updated_at')->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
                     TextEntry::make('updated_at')->label('Last Update')->formatStateUsing(fn($state) => Carbon::parse($state)->diffForHumans()),
@@ -273,32 +291,32 @@ class ItopReplaceResource extends Resource
     {
         return $page
             ->schema([
-                Section::make('Retailer Details')
-                    ->schema([
-                        TextInput::make('retailer.name')->label('Retailer Name')->disabled(),
-                        TextInput::make('retailer.mobile_number')->label('Mobile Number')->disabled(),
-                        TextInput::make('retailer.address')->label('Address')->disabled(),
-                    ])
-                    ->columns(3), // Arrange in 3 columns
-
-                Section::make('Itop Replace Details')
-                    ->schema([
-                        TextInput::make('serial_number')->disabled(),
-                        TextInput::make('balance')->disabled(),
-                        TextInput::make('reason')->disabled(),
-                        TextInput::make('user.name')->label('Replaced By')->disabled(),
-                    ])
-                    ->columns(2),
-
-                Tables\Table::make()
-                    ->query(fn ($record) => ItopReplace::where('retailer_id', $record->retailer_id))
-                    ->columns([
-                        TextColumn::make('serial_number')->sortable()->searchable(),
-                        TextColumn::make('balance')->sortable(),
-                        TextColumn::make('reason')->sortable(),
-                        TextColumn::make('user.name')->label('Replaced By'),
-                    ])
-                    ->defaultSort('created_at', 'desc')
+//                Section::make('Retailer Details')
+//                    ->schema([
+//                        TextInput::make('retailer.name')->label('Retailer Name')->disabled(),
+//                        TextInput::make('retailer.mobile_number')->label('Mobile Number')->disabled(),
+//                        TextInput::make('retailer.address')->label('Address')->disabled(),
+//                    ])
+//                    ->columns(3), // Arrange in 3 columns
+//
+//                Section::make('Itop Replace Details')
+//                    ->schema([
+//                        TextInput::make('serial_number')->disabled(),
+//                        TextInput::make('balance')->disabled(),
+//                        TextInput::make('reason')->disabled(),
+//                        TextInput::make('user.name')->label('Replaced By')->disabled(),
+//                    ])
+//                    ->columns(2),
+//
+//                Tables\Table::make()
+//                    ->query(fn ($record) => ItopReplace::where('retailer_id', $record->retailer_id))
+//                    ->columns([
+//                        TextColumn::make('serial_number')->sortable()->searchable(),
+//                        TextColumn::make('balance')->sortable(),
+//                        TextColumn::make('reason')->sortable(),
+//                        TextColumn::make('user.name')->label('Replaced By'),
+//                    ])
+//                    ->defaultSort('created_at', 'desc')
             ]);
     }
 
@@ -318,5 +336,18 @@ class ItopReplaceResource extends Resource
         }
 
         return $query->where('user_id', Auth::id());
+    }
+
+    public static function getPermissionPrefixes(): array
+    {
+        return [
+            'view',
+            'view_any',
+            'create',
+            'update',
+            'delete',
+            'delete_any',
+            'mail_format_btn',
+        ];
     }
 }
