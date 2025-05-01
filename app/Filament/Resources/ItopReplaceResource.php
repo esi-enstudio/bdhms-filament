@@ -13,6 +13,7 @@ use Filament\Forms\Form;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use App\Models\ItopReplace;
+use App\Filament\Clusters\ItopReplace as ItopReplaceCluster;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -25,13 +26,14 @@ use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Forms\Components\DateTimePicker;
 use App\Filament\Resources\ItopReplaceResource\Pages;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class ItopReplaceResource extends Resource implements HasShieldPermissions
 {
     protected static ?string $model = ItopReplace::class;
+
+    protected static ?string $modelLabel = 'Itop Replaces';
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-path-rounded-square';
 
@@ -279,7 +281,7 @@ class ItopReplaceResource extends Resource implements HasShieldPermissions
                     TextEntry::make('balance'),
                     TextEntry::make('reason')->formatStateUsing(fn($record) => Str::title($record->reason))->default('N/A'),
                     TextEntry::make('description')->default('N/A')->formatStateUsing(fn($record) => Str::title($record->description)),
-                    TextEntry::make('completed_at')->default('N/A')->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
+                    TextEntry::make('completed_at')->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
                     TextEntry::make('created_at')->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
                     TextEntry::make('updated_at')->formatStateUsing(fn($state) => Carbon::parse($state)->toDayDateTimeString()),
                     TextEntry::make('updated_at')->label('Last Update')->formatStateUsing(fn($state) => Carbon::parse($state)->diffForHumans()),

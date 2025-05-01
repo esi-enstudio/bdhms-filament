@@ -18,15 +18,9 @@ class ListItopReplaces extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()->label('Add New')->icon('heroicon-o-plus'),
-//            Action::make('mailFormat')
-//                ->label('Mail Format')
-//                ->icon('heroicon-o-envelope')
-//                ->visible(fn () => auth()->user()->hasPermissionTo('mail_format_btn_itop::replace'))
-//                ->authorize('mail_format_btn_itop::replace')
-//                ->form([
-//                    View::make('components.itop-replace.mail-format'),
-//                ]),
+            Actions\CreateAction::make()
+                ->label('Add New')
+                ->icon('heroicon-o-plus'),
         ];
     }
 
