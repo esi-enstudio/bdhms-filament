@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\ReceivingDues;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\RsoLifting;
 use App\Models\RsoSales;
 use App\Models\Sales;
@@ -29,6 +31,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        app(\Spatie\Permission\PermissionRegistrar::class)
+            ->setPermissionClass(Permission::class)
+            ->setRoleClass(Role::class);
+
         Lifting::observe(LiftingObserver::class);
         Sales::observe(SalesObserver::class);
         RsoLifting::observe(RsoLiftingObserver::class);

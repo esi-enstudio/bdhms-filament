@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('houses', function (Blueprint $table) {
             $table->id();
             $table->string('code')->unique()->index();
+            $table->string('slug')->unique()->index();
             $table->string('name')->index();
             $table->string('cluster')->nullable();
             $table->string('region')->nullable();

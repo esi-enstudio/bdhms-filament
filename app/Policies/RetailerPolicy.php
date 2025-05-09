@@ -63,7 +63,7 @@ class RetailerPolicy
      */
     public function forceDelete(User $user, Retailer $retailer): bool
     {
-        return $user->can('force_delete_retailer');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class RetailerPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_retailer');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class RetailerPolicy
      */
     public function restore(User $user, Retailer $retailer): bool
     {
-        return $user->can('restore_retailer');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class RetailerPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_retailer');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class RetailerPolicy
      */
     public function replicate(User $user, Retailer $retailer): bool
     {
-        return $user->can('replicate_retailer');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,14 +103,6 @@ class RetailerPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_retailer');
-    }
-
-    /**
-     * Determine whether the user can import retailer.
-     */
-    public function import(User $user): bool
-    {
-        return $user->can('import_btn_retailer');
+        return $user->can('{{ Reorder }}');
     }
 }

@@ -6,11 +6,13 @@ use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Carbon\Carbon;
 use App\Models\Rso;
 use App\Models\User;
+use Exception;
 use Filament\Tables;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use App\Models\Retailer;
 use Filament\Forms\Form;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Select;
@@ -120,6 +122,9 @@ class RetailerResource extends Resource implements HasShieldPermissions
             ]);
     }
 
+    /**
+     * @throws Exception
+     */
     public static function table(Table $table): Table
     {
         return $table
@@ -147,7 +152,13 @@ class RetailerResource extends Resource implements HasShieldPermissions
             ])
             ->defaultPaginationPageOption(5)
             ->filters([
-                //
+                SelectFilter::make('house_id')
+                    ->label('DD House')
+                    ->relationship('house', 'code'),
+
+                SelectFilter::make('sso')
+                    ->label('SSO')
+                    ->options(['Y' => 'Y', 'N' => 'N']),
             ])
             ->actions([
                 ViewAction::make(),

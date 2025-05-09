@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources;
 
+use Exception;
 use Filament\Forms;
 use App\Models\User;
 use Filament\Tables;
 use App\Models\House;
 use Filament\Forms\Form;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Str;
 use Filament\Resources\Resource;
@@ -24,6 +26,8 @@ class HouseResource extends Resource
     protected static ?string $model = House::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-home-modern';
+
+    protected static bool $isScopedToTenant = false;
 
     public static function form(Form $form): Form
     {

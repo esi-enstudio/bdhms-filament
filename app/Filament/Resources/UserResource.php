@@ -75,6 +75,14 @@ class UserResource extends Resource implements HasShieldPermissions
 
                         TextInput::make('remarks'),
                         Select::make('roles')->relationship('roles','name')->multiple()->searchable()->preload(),
+
+                        Forms\Components\CheckboxList::make('roles')
+                            ->relationship(name: 'roles', titleAttribute: 'name')
+                            ->saveRelationshipsUsing(function (Model $record, $state) {
+                                $record->roles()->syncWithPivotValues($state, [config('permission.column_names.team_foreign_key') => getPermissionsTeamId()]);
+                            })
+                            ->searchable(),
+
                         FileUpload::make('avatar')->disk('public')->directory('avatars'),
                     ])->columns(2),
 

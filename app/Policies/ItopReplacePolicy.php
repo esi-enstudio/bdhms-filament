@@ -63,7 +63,7 @@ class ItopReplacePolicy
      */
     public function forceDelete(User $user, ItopReplace $itopReplace): bool
     {
-        return $user->can('force_delete_itop::replace');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class ItopReplacePolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_itop::replace');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class ItopReplacePolicy
      */
     public function restore(User $user, ItopReplace $itopReplace): bool
     {
-        return $user->can('restore_itop::replace');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class ItopReplacePolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_itop::replace');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class ItopReplacePolicy
      */
     public function replicate(User $user, ItopReplace $itopReplace): bool
     {
-        return $user->can('replicate_itop::replace');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,6 @@ class ItopReplacePolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_itop::replace');
+        return $user->can('{{ Reorder }}');
     }
 }

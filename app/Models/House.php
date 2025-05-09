@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @method static where(string $string, string $string1)
  * @method static find($state)
  * @method static pluck(string $string, string $string1)
+ * @method static create(array|mixed[] $data)
  */
 class House extends Model
 {
@@ -38,6 +39,76 @@ class House extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class)->withTimestamps();
+    }
+
+
+    /** @return HasMany<Commission, self> */
+    public function commissions(): HasMany
+    {
+        return $this->hasMany(Commission::class);
+    }
+
+
+    /** @return HasMany<DailyExpense, self> */
+    public function dailyExpenses(): HasMany
+    {
+        return $this->hasMany(DailyExpense::class);
+    }
+
+
+    /** @return HasMany<ReceivingDues, self> */
+    public function receivingDues(): HasMany
+    {
+        return $this->hasMany(ReceivingDues::class);
+    }
+
+
+    /** @return HasMany<Retailer, self> */
+    public function retailers(): HasMany
+    {
+        return $this->hasMany(Retailer::class);
+    }
+
+
+    /** @return HasMany<RsoLifting, self> */
+    public function rsoLiftings(): HasMany
+    {
+        return $this->hasMany(RsoLifting::class);
+    }
+
+
+    /** @return HasMany<\App\Models\Rso, self> */
+    public function rsos(): HasMany
+    {
+        return $this->hasMany(\App\Models\Rso::class);
+    }
+
+
+    /** @return HasMany<RsoSales, self> */
+    public function rsoSales(): HasMany
+    {
+        return $this->hasMany(RsoSales::class);
+    }
+
+
+    /** @return HasMany<RsoStock, self> */
+    public function rsoStocks(): HasMany
+    {
+        return $this->hasMany(RsoStock::class);
+    }
+
+
+    /** @return HasMany<Sales, self> */
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sales::class);
+    }
+
+
+    /** @return HasMany<Stock, self> */
+    public function stocks(): HasMany
+    {
+        return $this->hasMany(Stock::class);
     }
 
 }

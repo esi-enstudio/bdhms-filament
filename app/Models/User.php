@@ -3,8 +3,11 @@
 namespace App\Models;
 
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasTenants;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,14 +26,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @method static whereIn(string $string, $usersNumber)
  * @property mixed|string $phone
  * @property mixed $email
+ * @property mixed $house
  */
-class User extends Authenticatable implements MustVerifyEmail, FilamentUser
+class User extends Authenticatable implements MustVerifyEmail, FilamentUser, HasTenants
 {
     use HasFactory, Notifiable, HasRoles;
 
 
     /**
-     * The attributes that are mass assignabl
+     * The attributes that are mass assignable
      * e.
      *
      * @var array<int, string>
@@ -43,6 +47,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         'password',
         'status',
         'remarks',
+        'disabled_at',
     ];
 
     /**
@@ -107,5 +112,15 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->hasVerifiedEmail(); // Extra layer, using "&& str_ends_with($this->email, '@bdhms.com')"
+    }
+
+    public function getTenants(Panel $panel): array|Collection
+    {
+        return $this->houses;
+    }
+
+    public function canAccessTenant(Model $tenant): bool
+    {
+        return $this->houses()->whereKey($tenant)->exists();
     }
 }

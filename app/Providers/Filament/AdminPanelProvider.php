@@ -2,6 +2,9 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Tenancy\RegisterHouse;
+use App\Models\House;
+use BezhanSalleh\FilamentShield\Middleware\SyncShieldTenant;
 use Exception;
 use Filament\Pages;
 use Filament\Panel;
@@ -36,6 +39,8 @@ class AdminPanelProvider extends PanelProvider
             ->passwordReset()
             ->emailVerification()
             ->profile()
+            ->tenant(House::class, slugAttribute: 'slug')
+            ->tenantRoutePrefix('house')
             ->colors([
                 'primary' => Color::Sky,
             ])
@@ -79,6 +84,9 @@ class AdminPanelProvider extends PanelProvider
                     ]),
                 SpotlightPlugin::make(),
             ])
+            ->tenantMiddleware([
+                SyncShieldTenant::class,
+            ], isPersistent: true)
             ->authMiddleware([
                 Authenticate::class,
             ])

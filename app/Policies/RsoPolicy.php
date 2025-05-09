@@ -63,7 +63,7 @@ class RsoPolicy
      */
     public function forceDelete(User $user, Rso $rso): bool
     {
-        return $user->can('force_delete_rso');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class RsoPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_rso');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class RsoPolicy
      */
     public function restore(User $user, Rso $rso): bool
     {
-        return $user->can('restore_rso');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class RsoPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_rso');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class RsoPolicy
      */
     public function replicate(User $user, Rso $rso): bool
     {
-        return $user->can('replicate_rso');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,14 +103,6 @@ class RsoPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_rso');
-    }
-
-    /**
-     * Determine whether the user can import rso.
-     */
-    public function import(User $user): bool
-    {
-        return $user->can('import_btn_rso');
+        return $user->can('{{ Reorder }}');
     }
 }

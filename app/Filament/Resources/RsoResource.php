@@ -8,6 +8,7 @@ use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
@@ -115,6 +116,9 @@ class RsoResource extends Resource implements HasShieldPermissions
             ]);
     }
 
+    /**
+     * @throws \Exception
+     */
     public static function table(Table $table): Table
     {
         return $table
@@ -194,6 +198,15 @@ class RsoResource extends Resource implements HasShieldPermissions
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('status')
                     ->badge()
+                    ->color(function ($state){
+                        if ($state == "active") {
+                            return 'success';
+                        }elseif ($state == "inactive") {
+                            return 'danger';
+                        }
+
+                        return false;
+                    })
                     ->formatStateUsing(fn(string $state): string => Str::title($state)),
                 TextColumn::make('remarks')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -210,7 +223,37 @@ class RsoResource extends Resource implements HasShieldPermissions
             ])
             ->defaultPaginationPageOption(5)
             ->filters([
-                //
+                SelectFilter::make('house_id')
+                    ->label('DD House')
+                    ->relationship('house', 'code'),
+
+                SelectFilter::make('status')
+                    ->label('Status')
+                    ->options(function () {
+                        $rso = self::$model;
+
+                        // Get unique mode values and convert to title case
+                        return $rso::query()
+                            ->select('status')
+                            ->whereNotNull('status')
+                            ->pluck('status')
+                            ->unique()
+                            ->flatMap(function ($status) {
+                                // Split comma-separated values and trim whitespace
+                                return array_map('trim', explode(',', $status));
+                            })
+                            ->mapWithKeys(function ($status) {
+                                // Use status as both key and value for simplicity
+                                return [$status => Str::title($status)];
+                            })
+                            ->toArray();
+                    })
+                    ->query(function ($query, array $data) {
+                        if (!empty($data['value'])) {
+                            // Use LIKE to filter records where status contains the selected value
+                            $query->where('status', 'LIKE', '%' . $data['value'] . '%');
+                        }
+                    }),
             ])
             ->actions([
                 ViewAction::make(),
