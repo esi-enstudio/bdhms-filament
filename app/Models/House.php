@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @method static find($state)
  * @method static pluck(string $string, string $string1)
  * @method static create(array|mixed[] $data)
+ * @method static first()
  */
 class House extends Model
 {
@@ -109,6 +110,13 @@ class House extends Model
     public function stocks(): HasMany
     {
         return $this->hasMany(Stock::class);
+    }
+
+
+    /** @return HasMany<\App\Models\Role, self> */
+    public function roles(): HasMany
+    {
+        return $this->hasMany(\App\Models\Role::class);
     }
 
 }

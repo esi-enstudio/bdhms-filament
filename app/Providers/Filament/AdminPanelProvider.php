@@ -39,7 +39,7 @@ class AdminPanelProvider extends PanelProvider
             ->passwordReset()
             ->emailVerification()
             ->profile()
-            ->tenant(House::class, slugAttribute: 'slug')
+            ->tenant(House::class, slugAttribute: 'slug', ownershipRelationship: 'house')
             ->tenantRoutePrefix('house')
             ->colors([
                 'primary' => Color::Sky,

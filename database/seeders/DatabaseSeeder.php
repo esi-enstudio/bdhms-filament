@@ -20,22 +20,14 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            SuperAdminSeeder::class,
             HouseSeeder::class,
+//            SuperAdminSeeder::class,
 //            UserSeeder::class,
 //            HouseUserSeeder::class,
 //            RsoSeeder::class,
             // RetailerSeeder::class,
 //            ProductSeeder::class,
         ]);
-
-//        User::factory()->create([
-//            'name' => 'Emil Sadekin Islam',
-//            'email' => 'nilemil007@gmail.com',
-//            'phone' => '01732547755',
-//            'status' => 'active',
-//            'password' => Hash::make('32133213'),
-//        ]);
 
         // ItopReplace::factory(10)->create();
     }

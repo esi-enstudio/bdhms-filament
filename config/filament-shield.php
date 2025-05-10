@@ -15,7 +15,6 @@ return [
 
     'tenant_model' => 'App\Models\House',
 
-
     'auth_provider_model' => [
         'fqcn' => 'App\\Models\\User',
     ],

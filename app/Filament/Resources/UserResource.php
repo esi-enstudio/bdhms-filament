@@ -2,13 +2,17 @@
 
 namespace App\Filament\Resources;
 
+use App\Models\Role;
 use App\Models\User;
 use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Tables;
 use Filament\Forms\Form;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
@@ -36,6 +40,8 @@ class UserResource extends Resource implements HasShieldPermissions
 
     protected static ?string $navigationIcon = 'heroicon-o-user';
 
+//    protected static ?string $tenantOwnershipRelationshipName = 'houses';
+
     public static function form(Form $form): Form
     {
         return $form
@@ -54,6 +60,7 @@ class UserResource extends Resource implements HasShieldPermissions
                             ->email()
                             ->required()
                             ->unique(User::class, 'email', ignoreRecord: true),
+
                         Select::make('status')->options([
                             'active' => 'Active',
                             'inactive' => 'Inactive',
@@ -65,6 +72,7 @@ class UserResource extends Resource implements HasShieldPermissions
                             ->dehydrated(fn ($state) => filled($state)) // Ignore empty values on update
                             ->visibleOn(['create','edit'])
                             ->rule(Password::default()),
+
                         TextInput::make('password_confirmation')
                             ->password()
                             ->requiredWith('password')
@@ -72,28 +80,40 @@ class UserResource extends Resource implements HasShieldPermissions
                             ->visibleOn(['create','edit'])
                             ->same('password'),
 
-
                         TextInput::make('remarks'),
-                        Select::make('roles')->relationship('roles','name')->multiple()->searchable()->preload(),
 
-                        Forms\Components\CheckboxList::make('roles')
-                            ->relationship(name: 'roles', titleAttribute: 'name')
-                            ->saveRelationshipsUsing(function (Model $record, $state) {
-                                $record->roles()->syncWithPivotValues($state, [config('permission.column_names.team_foreign_key') => getPermissionsTeamId()]);
+                        CheckboxList::make('roles')
+                            ->relationship(
+                                name: 'roles',
+                                titleAttribute: 'name',
+                                modifyQueryUsing: fn(Builder $query) => $query->where('roles.house_id', filament()->getTenant()?->id ?? 0)
+                            )
+                            ->searchable()
+                            ->default(function () {
+                                // নতুন ইউজারের জন্য ডিফল্ট রোল হিসেবে 'manager' এসাইন করুন
+                                $tenantId = filament()->getTenant()?->id;
+                                if ($tenantId) {
+                                    $defaultRole = \Spatie\Permission\Models\Role::where('name', 'manager')
+                                        ->where('house_id', $tenantId)
+                                        ->first();
+                                    return $defaultRole ? [$defaultRole->id] : [];
+                                }
+                                return [];
                             })
-                            ->searchable(),
+                            ->saveRelationshipsUsing(function (Model $record, $state) {
+                                $tenantId = filament()->getTenant()?->id;
+                                if (!$tenantId) {
+                                    \Illuminate\Support\Facades\Log::error('No tenant ID found while saving roles.');
+                                    return;
+                                }
+                                // রোলগুলো সিঙ্ক করুন এবং house_id সেট করুন
+                                $record->roles()->syncWithPivotValues($state, [
+                                    config('permission.column_names.team_foreign_key') => $tenantId,
+                                ]);
+                            }),
 
-                        FileUpload::make('avatar')->disk('public')->directory('avatars'),
+
                     ])->columns(2),
-
-                    Section::make('Attach House')
-                    ->description('Prevent abuse by limiting the number of requests per period')
-                    ->schema([
-                        Select::make('houses')
-                        ->relationship('houses','name')
-                        ->multiple()
-                        ->preload(),
-                    ]),
             ]);
     }
 

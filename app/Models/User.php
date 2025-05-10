@@ -75,7 +75,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
     }
 
     /**
-     * Relationship with Rso model
+     * Relationship with a Rso model
      *
      * @return HasOne
      */
@@ -85,7 +85,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
     }
 
     /**
-     * Relationship with Retailer model
+     * Relationship with a Retailer model
      *
      * @return HasOne
      */
@@ -95,7 +95,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
     }
 
     /**
-     * Relationship with Retailer model
+     * Relationship with a Retailer model
      *
      * @return HasMany
      */
@@ -104,7 +104,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
         return $this->hasMany(Lifting::class);
     }
 
-    public function houses(): BelongsToMany
+    public function house(): BelongsToMany
     {
         return $this->belongsToMany(House::class, 'house_user')->withTimestamps();
     }
@@ -116,11 +116,11 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
 
     public function getTenants(Panel $panel): array|Collection
     {
-        return $this->houses;
+        return $this->house;
     }
 
     public function canAccessTenant(Model $tenant): bool
     {
-        return $this->houses()->whereKey($tenant)->exists();
+        return $this->house()->whereKey($tenant)->exists();
     }
 }

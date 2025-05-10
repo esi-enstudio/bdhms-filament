@@ -50,7 +50,7 @@ class UsersImport implements ToCollection, WithHeadingRow, WithChunkReading
                 $houseIds = array_filter(array_map(fn($code) => $houses[$code] ?? null, $houseCodes));
 
                 if (!empty($houseIds)) {
-                    $user->houses()->sync($houseIds); // Attach houses via pivot
+                    $user->house()->sync($houseIds); // Attach houses via pivot
                 } else {
                     Log::warning("No valid houses found for user {$row['email']} with codes: {$row['dd_code']}");
                 }
