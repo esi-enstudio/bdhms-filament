@@ -82,6 +82,8 @@ class UserResource extends Resource implements HasShieldPermissions
 
                         TextInput::make('remarks'),
 
+                        FileUpload::make('avatar')->disk('public')->directory('avatars'),
+
                         CheckboxList::make('roles')
                             ->relationship(
                                 name: 'roles',
@@ -103,7 +105,7 @@ class UserResource extends Resource implements HasShieldPermissions
                             ->saveRelationshipsUsing(function (Model $record, $state) {
                                 $tenantId = filament()->getTenant()?->id;
                                 if (!$tenantId) {
-                                    \Illuminate\Support\Facades\Log::error('No tenant ID found while saving roles.');
+                                    Log::error('No tenant ID found while saving roles.');
                                     return;
                                 }
                                 // রোলগুলো সিঙ্ক করুন এবং house_id সেট করুন
@@ -133,7 +135,7 @@ class UserResource extends Resource implements HasShieldPermissions
                     ->badge()
                     ->formatStateUsing(fn(string $state): string => Str::title($state))
                     ->searchable(),
-                TextColumn::make('houses.code')->badge(),
+                TextColumn::make('house.code')->badge(),
                 TextColumn::make('roles.name')->badge()->formatStateUsing(fn(string $state): string => Str::title($state)),
                 TextColumn::make('remarks')
                 ->toggleable(isToggledHiddenByDefault: true),

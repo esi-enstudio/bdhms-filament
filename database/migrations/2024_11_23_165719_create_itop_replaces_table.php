@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\House;
 use App\Models\Retailer;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
@@ -15,6 +16,7 @@ return new class extends Migration
     {
         Schema::create('itop_replaces', function (Blueprint $table) {
             $table->id();
+            $table->foreignIdFor(House::class);
             $table->foreignIdFor(User::class);
             $table->foreignIdFor(Retailer::class);
             $table->string('sim_serial')->unique();

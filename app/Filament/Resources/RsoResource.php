@@ -2,9 +2,12 @@
 
 namespace App\Filament\Resources;
 
+use App\Models\House;
 use App\Models\Rso;
 use App\Models\User;
 use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
+use Exception;
+use Filament\Facades\Filament;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Form;
@@ -39,30 +42,35 @@ class RsoResource extends Resource implements HasShieldPermissions
         return $form
             ->schema([
                 Select::make('house_id')
-                    ->relationship('house', 'name')
-                    ->searchable()
-                    ->preload()
-                    ->live()
-                    ->afterStateUpdated(fn(Set $set) => $set('user_id', null))
+                    ->label('House')
+                    ->options(function () {
+                        // বর্তমান টেনান্টের হাউসগুলো লোড করুন
+                        $currentTenant = Filament::getTenant(); // বর্তমান টেনান্ট (House মডেল)
+                        return House::where('id', $currentTenant->id)->pluck('name', 'id');
+                    })
+                    ->default(function () {
+                        // বর্তমান টেনান্টের id ডিফল্ট হিসেবে সেট করুন
+                        return Filament::getTenant()->id;
+                    })
+                    ->disabled()
                     ->required(),
 
-                Select::make('user_id')
-                    ->label('User')
-                    ->options(fn(Get $get, ?Model $record) => User::query()
-                        ->where('status','active')
-                        ->whereHas('houses', function ($house) use ($get){
-                            $house->where('houses.id', $get('house_id'));
-                        })
-                        ->whereHas('roles', function ($role){
-                            $role->where('roles.name', 'rso');
-                        })
-                        ->whereNotIn('id', Rso::whereNotNull('user_id')->pluck('user_id'))
-                        ->when($record, fn($query) => $query->orWhere('id', $record->user_id))
-                        ->pluck('name','id')
-                    )
-                    ->searchable()
-                    ->preload()
-                    ->required(),
+//                Select::make('user_id')
+//                    ->label('User')
+//                    ->options(fn(Get $get, ?Model $record) => User::query()
+//                        ->where('status','active')
+//                        ->whereHas('house', function ($house) use ($get){
+//                            $house->where('house.id', $get('house_id'));
+//                        })
+//                        ->whereHas('roles', function ($role){
+//                            $role->where('roles.name', 'rso');
+//                        })
+//                        ->whereNotIn('id', Rso::whereNotNull('user_id')->pluck('user_id'))
+//                        ->when($record, fn($query) => $query->orWhere('id', $record->user_id))
+//                        ->pluck('name','id'))
+//                    ->searchable()
+//                    ->preload()
+//                    ->required(),
                 TextInput::make('osrm_code'),
                 TextInput::make('employee_code'),
                 TextInput::make('rso_code'),
@@ -117,7 +125,7 @@ class RsoResource extends Resource implements HasShieldPermissions
     }
 
     /**
-     * @throws \Exception
+     * @throws Exception
      */
     public static function table(Table $table): Table
     {
