@@ -52,8 +52,8 @@ class RsoResource extends Resource implements HasShieldPermissions
                         // বর্তমান টেনান্টের id ডিফল্ট হিসেবে সেট করুন
                         return Filament::getTenant()->id;
                     })
-                    ->disabled()
-                    ->required(),
+                    ->required()
+                    ->disabled(),
 
                 Select::make('user_id')
                     ->label('User')
@@ -68,12 +68,12 @@ class RsoResource extends Resource implements HasShieldPermissions
                         // Fetch users who:
                         // 1. Are associated with the current tenant (via house_user)
                         // 2. Have 'active' status in the house_user pivot
-                        // 3. Are not already in the RSO table
+                        // 3. Are not yet in the RSO table
                         return User::query()
                             ->whereHas('house', fn ($query) => $query->where('houses.id', $currentTenant->id))
                             ->whereHas('roles', fn ($query) => $query->where('roles.name', 'rso'))
                             ->where('status', 'active')
-                            ->whereNotIn('id', Rso::pluck('user_id'))
+                            ->whereNotIn('id', Rso::whereNotNull('user_id')->pluck('user_id'))
                             ->pluck('name', 'id')
                             ->toArray();
                     })
@@ -94,12 +94,11 @@ class RsoResource extends Resource implements HasShieldPermissions
                         // Fetch supervisors who:
                         // 1. Are associated with the current tenant (via house_user)
                         // 2. Have 'active' status in the house_user pivot
-                        // 3. Are not already in the RSO table
+                        // 3. Are not yet in the RSO table
                         return User::query()
                             ->whereHas('house', fn ($query) => $query->where('houses.id', $currentTenant->id))
                             ->whereHas('roles', fn ($query) => $query->where('roles.name', 'supervisor'))
                             ->where('status', 'active')
-                            ->whereNotIn('id', Rso::pluck('user_id'))
                             ->pluck('name', 'id')
                             ->toArray();
                     })

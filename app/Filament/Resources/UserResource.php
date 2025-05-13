@@ -5,9 +5,11 @@ namespace App\Filament\Resources;
 use App\Models\Role;
 use App\Models\User;
 use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Tables;
 use Filament\Forms\Form;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -121,6 +123,9 @@ class UserResource extends Resource implements HasShieldPermissions
             ]);
     }
 
+    /**
+     * @throws \Exception
+     */
     public static function table(Table $table): Table
     {
         return $table
@@ -156,7 +161,35 @@ class UserResource extends Resource implements HasShieldPermissions
             ])
             ->defaultPaginationPageOption(5)
             ->filters([
-                //
+                SelectFilter::make('role')
+                    ->options(function () {
+                        // Get the current tenant
+                        $tenant = Filament::getTenant();
+
+                        // Fetch roles that are assigned to users associated with the current tenant
+                        return \Spatie\Permission\Models\Role::query()
+                            ->whereHas('users', function ($query) use ($tenant) {
+                                $query->whereHas('house', function ($q) use ($tenant) {
+                                    $q->where('houses.id', $tenant->id);
+                                });
+                            })
+                            ->pluck('name')
+                            ->mapWithKeys(function ($role) {
+                                // Use role name as both key and value, formatted in title case
+                                return [$role => Str::title($role)];
+                            })
+                            ->toArray();
+                    })
+                    ->query(function ($query, array $data) {
+                        if (!empty($data['value'])) {
+                            // Filter users who have the selected role and are associated with the current tenant
+                            $query->whereHas('roles', function ($q) use ($data) {
+                                $q->where('name', $data['value']);
+                            })->whereHas('house', function ($q) {
+                                $q->where('houses.id', Filament::getTenant()->id);
+                            });
+                        }
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
