@@ -61,7 +61,9 @@ class UserResource extends Resource implements HasShieldPermissions
                             ->required()
                             ->unique(User::class, 'email', ignoreRecord: true),
 
-                        Select::make('status')->options([
+                        Select::make('status')
+                            ->default('active')
+                            ->options([
                             'active' => 'Active',
                             'inactive' => 'Inactive',
                         ]),

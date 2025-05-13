@@ -55,26 +55,61 @@ class RsoResource extends Resource implements HasShieldPermissions
                     ->disabled()
                     ->required(),
 
-//                Select::make('user_id')
-//                    ->label('User')
-//                    ->options(fn(Get $get, ?Model $record) => User::query()
-//                        ->where('status','active')
-//                        ->whereHas('house', function ($house) use ($get){
-//                            $house->where('house.id', $get('house_id'));
-//                        })
-//                        ->whereHas('roles', function ($role){
-//                            $role->where('roles.name', 'rso');
-//                        })
-//                        ->whereNotIn('id', Rso::whereNotNull('user_id')->pluck('user_id'))
-//                        ->when($record, fn($query) => $query->orWhere('id', $record->user_id))
-//                        ->pluck('name','id'))
-//                    ->searchable()
-//                    ->preload()
-//                    ->required(),
+                Select::make('user_id')
+                    ->label('User')
+                    ->options(function () {
+                        // Get the current tenant
+                        $currentTenant = Filament::getTenant();
+
+                        if (!$currentTenant) {
+                            return [];
+                        }
+
+                        // Fetch users who:
+                        // 1. Are associated with the current tenant (via house_user)
+                        // 2. Have 'active' status in the house_user pivot
+                        // 3. Are not already in the RSO table
+                        return User::query()
+                            ->whereHas('house', fn ($query) => $query->where('houses.id', $currentTenant->id))
+                            ->whereHas('roles', fn ($query) => $query->where('roles.name', 'rso'))
+                            ->where('status', 'active')
+                            ->whereNotIn('id', Rso::pluck('user_id'))
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
+                    ->required()
+                    ->preload()
+                    ->searchable(),
+
+                Select::make('supervisor_id')
+                    ->label('Supervisor')
+                    ->options(function () {
+                        // Get the current tenant
+                        $currentTenant = Filament::getTenant();
+
+                        if (!$currentTenant) {
+                            return [];
+                        }
+
+                        // Fetch supervisors who:
+                        // 1. Are associated with the current tenant (via house_user)
+                        // 2. Have 'active' status in the house_user pivot
+                        // 3. Are not already in the RSO table
+                        return User::query()
+                            ->whereHas('house', fn ($query) => $query->where('houses.id', $currentTenant->id))
+                            ->whereHas('roles', fn ($query) => $query->where('roles.name', 'supervisor'))
+                            ->where('status', 'active')
+                            ->whereNotIn('id', Rso::pluck('user_id'))
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
+                    ->required()
+                    ->preload()
+                    ->searchable(),
                 TextInput::make('osrm_code'),
                 TextInput::make('employee_code'),
-                TextInput::make('rso_code'),
-                TextInput::make('itop_number')->numeric(),
+                TextInput::make('rso_code')->required(),
+                TextInput::make('itop_number')->numeric()->required(),
                 TextInput::make('pool_number')->numeric(),
                 TextInput::make('personal_number')->numeric(),
                 TextInput::make('bank_account_name'),
@@ -115,10 +150,11 @@ class RsoResource extends Resource implements HasShieldPermissions
                 DatePicker::make('joining_date')->native(false),
                 DatePicker::make('resign_date')->native(false),
                 Select::make('status')
-                ->options([
-                    'active' => 'Active',
-                    'inactive' => 'Inactive',
-                ]),
+                    ->default('active')
+                    ->options([
+                        'active' => 'Active',
+                        'inactive' => 'Inactive',
+                    ]),
                 TextInput::make('remarks'),
                 TextInput::make('document'),
             ]);
