@@ -2,7 +2,7 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Pages\Tenancy\RegisterHouse;
+use App\Http\Middleware\EnsureUserIsSuperAdmin;
 use App\Models\House;
 use BezhanSalleh\FilamentShield\Middleware\SyncShieldTenant;
 use Exception;
@@ -88,6 +88,7 @@ class AdminPanelProvider extends PanelProvider
             ], isPersistent: true)
             ->authMiddleware([
                 Authenticate::class,
+//                EnsureUserIsSuperAdmin::class,
             ])
             ->spa();
     }
