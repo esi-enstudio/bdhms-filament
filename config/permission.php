@@ -1,5 +1,7 @@
 <?php
 
+use Spatie\Permission\DefaultTeamResolver;
+
 return [
 
     'models' => [
@@ -64,7 +66,8 @@ return [
 
         /*
          * When using the "HasRoles" trait from this package, we need to know which
-         * table should be used to retrieve your roles permissions. We have chosen a
+         * table should be used to retrieve your role permissions.
+         * We have chosen a
          * basic default value, but you may easily change it to any table you like.
          */
 
@@ -89,7 +92,7 @@ return [
         'model_morph_key' => 'model_id',
 
         /*
-         * Change this if you want to use the teams feature and your related model's
+         * Change this if you want to use the teams feature, and your related model's
          * foreign key is other than `team_id`.
          */
 
@@ -123,10 +126,10 @@ return [
 
     /*
      * Teams Feature.
-     * When set to true the package implements teams using the 'team_foreign_key'.
+     * When set to true, the package implements teams using the 'team_foreign_key'.
      * If you want the migrations to register the 'team_foreign_key', you must
      * set this to true before doing the migration.
-     * If you already did the migration then you must make a new migration to also
+     * If you already did the migration, then you must make a new migration to also
      * add 'team_foreign_key' to 'roles', 'model_has_roles', and 'model_has_permissions'
      * (view the latest version of this package's migration file)
      */
@@ -136,11 +139,11 @@ return [
     /*
      * The class to use to resolve the permissions team id
      */
-    'team_resolver' => \Spatie\Permission\DefaultTeamResolver::class,
+    'team_resolver' => DefaultTeamResolver::class,
 
     /*
      * Passport Client Credentials Grant
-     * When set to true the package will use Passports Client to check permissions
+     * When set to true, the package will use Passports Client to check permissions
      */
 
     'use_passport_client_credentials' => false,
@@ -162,8 +165,8 @@ return [
     'display_role_in_exception' => false,
 
     /*
-     * By default wildcard permission lookups are disabled.
-     * See documentation to understand supported syntax.
+     * By default, wildcard permission lookups are disabled.
+     * See documentation to understand the supported syntax.
      */
 
     'enable_wildcard_permission' => false,
@@ -179,11 +182,11 @@ return [
     'cache' => [
 
         /*
-         * By default all permissions are cached for 24 hours to speed up performance.
-         * When permissions or roles are updated the cache is flushed automatically.
+         * By default, all permissions are cached for 24 hours to speed up performance.
+         * When permissions or roles are updated, the cache is flushed automatically.
          */
 
-        'expiration_time' => \DateInterval::createFromDateString('24 hours'),
+        'expiration_time' => DateInterval::createFromDateString('24 hours'),
 
         /*
          * The cache key used to store all permissions.

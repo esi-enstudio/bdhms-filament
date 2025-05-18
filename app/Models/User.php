@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Exception;
+use Filament\Facades\Filament;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasTenants;
 use Filament\Panel;
@@ -115,7 +116,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->hasVerifiedEmail(); // Extra layer, using "&& str_ends_with($this->email, '@bdhms.com')"
+        return true;
     }
 
     public function getTenants(Panel $panel): array|Collection

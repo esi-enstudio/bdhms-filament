@@ -2,7 +2,6 @@
 
 namespace App\Providers\Filament;
 
-use App\Http\Middleware\EnsureUserIsSuperAdmin;
 use App\Models\House;
 use BezhanSalleh\FilamentShield\Middleware\SyncShieldTenant;
 use Exception;
@@ -39,7 +38,7 @@ class AdminPanelProvider extends PanelProvider
             ->passwordReset()
             ->emailVerification()
             ->profile()
-            ->tenant(House::class, slugAttribute: 'slug', ownershipRelationship: 'house')
+            ->tenant(House::class, slugAttribute: 'slug')
             ->colors([
                 'primary' => Color::Sky,
             ])

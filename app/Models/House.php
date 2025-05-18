@@ -24,7 +24,7 @@ class House extends Model
     protected $guarded = [];
 
     /**
-     * Relationship with User model
+     * Relationship with a User model
      *
      */
     public function rso(): HasMany
